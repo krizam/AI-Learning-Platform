@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  FaBell,
   FaBars,
   FaTimes,
   FaTh,
@@ -12,21 +11,10 @@ import {
   FaSignOutAlt,
 } from 'react-icons/fa';
 
-const MOCK_NOTIFICATIONS = [
-  { id: 1, message: 'New lesson added to Web Development Bootcamp', time: '2 hrs ago', read: false },
-  { id: 2, message: 'You completed "Variables & Data Types"', time: '1 day ago', read: false },
-  { id: 3, message: 'Quiz deadline tomorrow: Python Basics', time: '1 day ago', read: true },
-  { id: 4, message: 'Instructor posted an announcement', time: '2 days ago', read: true },
-];
-
 const DashboardNav = ({ activePage }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [mobileMenu, setMobileMenu] = useState(false);
-
-  const unread = notifications.filter((n) => !n.read).length;
 
   // Different navigation links for teachers and students
   const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
@@ -84,50 +72,6 @@ const DashboardNav = ({ activePage }) => {
 
           {/* ── Right: Bell + Avatar + Logout ── */}
           <div className="flex items-center space-x-2 flex-shrink-0">
-
-            {/* Notification Bell */}
-            <div className="relative">
-              <button
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 text-slate-500 dark:text-slate-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <FaBell className="text-lg" />
-                {unread > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
-                    {unread}
-                  </span>
-                )}
-              </button>
-
-              {/* Dropdown */}
-              {showNotifications && (
-                <div className="absolute right-0 top-12 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
-                    <h4 className="font-semibold text-slate-900 dark:text-white text-sm">Notifications</h4>
-                    <button
-                      onClick={() => setNotifications((p) => p.map((n) => ({ ...n, read: true })))}
-                      className="text-xs text-blue-500 hover:underline"
-                    >
-                      Mark all read
-                    </button>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
-                    {notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`px-4 py-3 flex items-start space-x-3 ${!n.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
-                      >
-                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!n.read ? 'bg-blue-500' : 'bg-slate-300'}`} />
-                        <div>
-                          <p className="text-sm text-slate-700 dark:text-slate-300">{n.message}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{n.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
 
             {/* Avatar */}
             <button
