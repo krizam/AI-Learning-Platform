@@ -126,9 +126,13 @@ const DashboardNav = ({ activePage }) => {
             {/* Avatar */}
             <button
               onClick={() => navigate('/profile')}
-              className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 transition-all"
+              className="w-9 h-9 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm hover:ring-2 hover:ring-blue-400 hover:ring-offset-1 transition-all overflow-hidden flex-shrink-0"
             >
-              {user?.name?.charAt(0)?.toUpperCase() || 'S'}
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                user?.name?.charAt(0)?.toUpperCase() || 'U'
+              )}
             </button>
 
             {/* Logout (desktop) */}

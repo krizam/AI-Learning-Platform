@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
 import DashboardNav from './DashboardNav';
-import StudentSidebar from '../components/StudentSidebar';
+import TeacherSidebar from '../components/TeacherSidebar';
 import {
   FaBook, FaUsers, FaStar, FaPlus, FaEdit, FaTrash,
   FaChartLine, FaCheckCircle, FaExclamationCircle,
@@ -285,12 +285,14 @@ const TeacherDashboard = () => {
     advanced: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   };
 
+  const isMyCourses = location.pathname === '/teacher/courses';
+
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
       <DashboardNav activePage={location.pathname} />
 
       <div className="flex flex-1 overflow-hidden">
-        <StudentSidebar />
+        <TeacherSidebar />
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
@@ -301,7 +303,8 @@ const TeacherDashboard = () => {
               </div>
             )}
 
-            {/* ── Welcome Banner ── */}
+            {/* ── Welcome Banner (dashboard only) ── */}
+            {!isMyCourses && (
             <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 rounded-2xl p-6 sm:p-8 mb-8 text-white relative overflow-hidden">
               <div className="absolute inset-0 opacity-10 pointer-events-none">
                 <div className="absolute -top-16 -right-16 w-64 h-64 bg-white rounded-full" />
@@ -331,14 +334,25 @@ const TeacherDashboard = () => {
                 </button>
               </div>
             </div>
+            )}
 
-            {/* ── Stats ── */}
+            {/* ── My Courses page header ── */}
+            {isMyCourses && (
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">My Courses</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Manage and create your courses</p>
+              </div>
+            )}
+
+            {/* ── Stats (dashboard only) ── */}
+            {!isMyCourses && (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <StatCard icon={FaBook} label="Total Courses" value={courses.length} gradient="from-amber-500 to-orange-500" sub="Created by you" />
               <StatCard icon={FaUsers} label="Total Students" value={totalStudents} gradient="from-blue-500 to-cyan-500" sub="Across all courses" />
               <StatCard icon={FaStar} label="Avg Rating" value={avgRating} gradient="from-yellow-500 to-amber-500" sub="Student reviews" />
               <StatCard icon={FaChartLine} label="Published" value={published} gradient="from-green-500 to-emerald-500" sub={`of ${courses.length} courses`} />
             </div>
+            )}
 
             {/* ── My Courses ── */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
@@ -511,3 +525,4 @@ const TeacherDashboard = () => {
 };
 
 export default TeacherDashboard;
+

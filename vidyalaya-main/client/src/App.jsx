@@ -155,6 +155,14 @@ function App() {
               </TeacherRoute>
             }
           />
+          <Route
+            path="/teacher/courses"
+            element={
+              <TeacherRoute>
+                <TeacherDashboard />
+              </TeacherRoute>
+            }
+          />
 
           {/* ── Student sub-routes ── */}
           <Route
