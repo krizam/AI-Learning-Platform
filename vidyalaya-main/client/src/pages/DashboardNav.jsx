@@ -5,7 +5,6 @@ import {
   FaBell,
   FaBars,
   FaTimes,
-  FaHome,
   FaTh,
   FaBook,
   FaCompass,
@@ -29,12 +28,18 @@ const DashboardNav = ({ activePage }) => {
 
   const unread = notifications.filter((n) => !n.read).length;
 
-  const navLinks = [
-    { label: 'Home',       path: '/home',            icon: FaHome    },
-    { label: 'Dashboard',  path: '/dashboard',       icon: FaTh      },
-    { label: 'My Courses', path: '/my-courses',      icon: FaBook    },
-    { label: 'Explore',    path: '/explore-courses', icon: FaCompass },
-    { label: 'AI Tutor',   path: '/ai-tutor',        icon: FaRobot   },
+  // Different navigation links for teachers and students
+  const isTeacher = user?.role === 'teacher' || user?.role === 'admin';
+  
+  const navLinks = isTeacher ? [
+    { label: 'Dashboard',  path: '/teacher/dashboard',   icon: FaTh      },
+    { label: 'Explore',    path: '/explore-courses',     icon: FaCompass },
+    { label: 'AI Tutor',   path: '/ai-tutor',            icon: FaRobot   },
+  ] : [
+    { label: 'Dashboard',  path: '/dashboard',           icon: FaTh      },
+    { label: 'My Courses', path: '/my-courses',          icon: FaBook    },
+    { label: 'Explore',    path: '/explore-courses',     icon: FaCompass },
+    { label: 'AI Tutor',   path: '/ai-tutor',            icon: FaRobot   },
   ];
 
   return (
@@ -45,7 +50,7 @@ const DashboardNav = ({ activePage }) => {
           {/* ── Logo ── */}
           <div
             className="flex-shrink-0 cursor-pointer"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(isTeacher ? '/teacher/dashboard' : '/dashboard')}
           >
             <span className="text-2xl font-extrabold text-blue-500 tracking-tight">
               Vidyalaya
@@ -57,7 +62,8 @@ const DashboardNav = ({ activePage }) => {
             <div className="flex items-center space-x-1">
               {navLinks.map((link) => {
                 const Icon = link.icon;
-                const isActive = activePage === link.path;
+                const isActive = activePage === link.path || 
+                  (link.path === '/teacher/dashboard' && activePage?.startsWith('/teacher/'));
                 return (
                   <button
                     key={link.path}

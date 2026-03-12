@@ -16,6 +16,8 @@ const STUDENT_ROUTE_PREFIXES = [
 
 const TEACHER_ROUTE_PREFIXES = [
   '/profile',
+  '/explore-courses',
+  '/ai-tutor',
 ];
 
 const isShellRoute = (pathname, role) => {
