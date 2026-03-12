@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import Landing from './pages/Landing';
@@ -12,17 +13,63 @@ import ExploreCourses from './pages/ExploreCourses';
 import CourseDetail from './pages/CourseDetail';
 import AITutorChat from './pages/AITutorChat';
 import StudentDashboard from './pages/StudentDashboard';
+import TeacherDashboard from './pages/TeacherDashboard';
 import MyCourses from './pages/MyCourses';
 import ProfilePage from './pages/ProfilePage';
 import CourseLearning from './pages/CourseLearning';
 import Assignments from './pages/Assignments';
+
+// ── TeacherRoute ──────────────────────────────────────────────────────────────
+// Wraps ProtectedRoute and additionally enforces role === 'teacher'.
+const TeacherRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'teacher' && user?.role !== 'admin') {
+    // Students who land on /teacher/dashboard get redirected to their own dashboard
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
+
+// ── Role-aware dashboard redirect ────────────────────────────────────────────
+// /dashboard redirects teachers to their own dashboard automatically.
+const DashboardRouter = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (user?.role === 'teacher' || user?.role === 'admin') {
+    return <Navigate to="/teacher/dashboard" replace />;
+  }
+
+  return <StudentDashboard />;
+};
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Public Routes */}
+          {/* ── Public Routes ── */}
           <Route path="/" element={<Landing />} />
           <Route path="/about" element={<About />} />
           <Route path="/features" element={<Features />} />
@@ -42,11 +89,11 @@ function App() {
               </PublicRoute>
             }
           />
-          
-          {/* ExploreCourses - Now public, but handles auth internally */}
+
+          {/* ExploreCourses — public but handles auth internally */}
           <Route path="/explore-courses" element={<ExploreCourses />} />
-          
-          {/* Protected Routes */}
+
+          {/* ── Protected Routes ── */}
           <Route
             path="/home"
             element={
@@ -55,14 +102,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* /dashboard: auto-redirects teachers to /teacher/dashboard */}
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
-                <StudentDashboard />
+                <DashboardRouter />
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/my-courses"
             element={
@@ -96,6 +146,16 @@ function App() {
             }
           />
 
+          {/* ── Teacher-only Routes ── */}
+          <Route
+            path="/teacher/dashboard"
+            element={
+              <TeacherRoute>
+                <TeacherDashboard />
+              </TeacherRoute>
+            }
+          />
+
           {/* ── Student sub-routes ── */}
           <Route
             path="/student/course/:courseId/learn"
@@ -114,7 +174,7 @@ function App() {
             }
           />
 
-          {/* Default Routes */}
+          {/* Default fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

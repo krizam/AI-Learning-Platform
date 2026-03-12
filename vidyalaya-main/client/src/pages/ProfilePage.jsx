@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
@@ -6,35 +6,59 @@ import StudentShell from '../components/StudentShell';
 import {
   FaUser, FaEnvelope, FaLock, FaCamera, FaCheckCircle,
   FaExclamationCircle, FaSpinner, FaShieldAlt, FaBell,
-  FaPalette, FaTrash,
+  FaTrash, FaGraduationCap, FaBriefcase, FaChalkboardTeacher,
 } from 'react-icons/fa';
 
 const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
+
+  const isTeacher = user?.role === 'teacher';
 
   const [activeSection, setActiveSection] = useState('profile');
 
-  // Profile form state
-  const [profileData, setProfileData] = useState({ name: '', email: '' });
+  // ── Profile state ────────────────────────────────────────────────────────
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    degree: '',
+    yearsOfTeaching: '',
+    experienceDescription: '',
+  });
 
-  // Sync profile form when user loads
   useEffect(() => {
     if (user) {
-      setProfileData({ name: user.name || '', email: user.email || '' });
+      setProfileData({
+        name: user.name || '',
+        email: user.email || '',
+        degree: user.degree || '',
+        yearsOfTeaching: user.yearsOfTeaching ?? '',
+        experienceDescription: user.experienceDescription || '',
+      });
     }
   }, [user]);
+
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState('');
   const [profileError, setProfileError] = useState('');
 
-  // Password form state
-  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  // ── Avatar state ─────────────────────────────────────────────────────────
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarError, setAvatarError] = useState('');
+
+  // ── Password state ───────────────────────────────────────────────────────
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
-  // Notification preferences (mock)
+  // ── Notification prefs (mock) ────────────────────────────────────────────
   const [notifPrefs, setNotifPrefs] = useState({
     newLesson: true,
     deadlineReminder: true,
@@ -42,13 +66,23 @@ const ProfilePage = () => {
     weeklyReport: true,
   });
 
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setProfileLoading(true);
     setProfileSuccess('');
     setProfileError('');
     try {
-      const updatedUser = await authAPI.updateProfile(profileData.name, profileData.email);
+      const payload = {
+        name: profileData.name,
+        email: profileData.email,
+        ...(isTeacher && {
+          degree: profileData.degree,
+          yearsOfTeaching: Number(profileData.yearsOfTeaching) || 0,
+          experienceDescription: profileData.experienceDescription,
+        }),
+      };
+      const updatedUser = await authAPI.updateProfile(payload);
       updateUser(updatedUser);
       setProfileSuccess('Profile updated successfully!');
     } catch (err) {
@@ -58,17 +92,32 @@ const ProfilePage = () => {
     }
   };
 
+  const handleAvatarSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAvatarPreview(URL.createObjectURL(file));
+    setAvatarLoading(true);
+    setAvatarError('');
+    try {
+      const updatedUser = await authAPI.uploadAvatar(file);
+      updateUser(updatedUser);
+    } catch (err) {
+      setAvatarError(err.response?.data?.message || 'Failed to upload avatar');
+      setAvatarPreview('');
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     setPasswordError('');
     setPasswordSuccess('');
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setPasswordError('New passwords do not match');
-      return;
+      return setPasswordError('New passwords do not match');
     }
     if (passwordData.newPassword.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      return;
+      return setPasswordError('Password must be at least 6 characters');
     }
     setPasswordLoading(true);
     try {
@@ -82,12 +131,20 @@ const ProfilePage = () => {
     }
   };
 
+  // ── Sidebar sections ─────────────────────────────────────────────────────
   const sections = [
     { id: 'profile', label: 'Profile Info', icon: FaUser },
     { id: 'password', label: 'Password', icon: FaLock },
     { id: 'notifications', label: 'Notifications', icon: FaBell },
     { id: 'account', label: 'Account', icon: FaShieldAlt },
   ];
+
+  // Compute avatar display
+  const avatarSrc = avatarPreview || user?.avatar || '';
+  const avatarInitial = user?.name?.charAt(0)?.toUpperCase() || 'U';
+
+  const inputClass =
+    'w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm';
 
   return (
     <StudentShell>
@@ -103,23 +160,63 @@ const ProfilePage = () => {
 
           {/* ── Sidebar ── */}
           <div className="lg:col-span-1">
+
             {/* Avatar Card */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 text-center mb-4">
               <div className="relative inline-block mb-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-3xl font-bold mx-auto">
-                  {user?.name?.charAt(0)?.toUpperCase() || 'S'}
+                {/* Avatar image or initial */}
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-3xl font-bold mx-auto overflow-hidden ring-4 ring-primary-100 dark:ring-primary-900/30">
+                  {avatarSrc ? (
+                    <img src={avatarSrc} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    avatarInitial
+                  )}
                 </div>
-                <button className="absolute bottom-0 right-0 w-7 h-7 bg-primary-600 text-white rounded-full flex items-center justify-center hover:bg-primary-700 transition-colors shadow-lg">
-                  <FaCamera className="text-xs" />
+
+                {/* Camera button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={avatarLoading}
+                  className="absolute bottom-0 right-0 w-7 h-7 bg-primary-600 text-white rounded-full flex items-center justify-center hover:bg-primary-700 transition-colors shadow-lg disabled:opacity-60"
+                  title="Upload photo"
+                >
+                  {avatarLoading ? (
+                    <FaSpinner className="text-xs animate-spin" />
+                  ) : (
+                    <FaCamera className="text-xs" />
+                  )}
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarSelect}
+                  className="hidden"
+                />
               </div>
+
+              {avatarError && (
+                <p className="text-xs text-red-500 mb-2">{avatarError}</p>
+              )}
+
               <h3 className="font-bold text-slate-900 dark:text-white">{user?.name}</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>
-              <span className="inline-flex items-center mt-2 px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300 capitalize">
+
+              {/* Role badge */}
+              <span className={`inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                isTeacher
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                  : 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+              }`}>
+                {isTeacher ? <FaChalkboardTeacher className="text-xs" /> : <FaGraduationCap className="text-xs" />}
                 {user?.role}
               </span>
+
               <p className="text-xs text-slate-400 mt-3">
-                Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'}
+                Member since{' '}
+                {user?.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                  : 'N/A'}
               </p>
             </div>
 
@@ -164,6 +261,7 @@ const ProfilePage = () => {
                 )}
 
                 <form onSubmit={handleProfileSave} className="space-y-5">
+                  {/* Name */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Full Name</label>
                     <div className="relative">
@@ -171,13 +269,14 @@ const ProfilePage = () => {
                       <input
                         type="text"
                         value={profileData.name}
-                        onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                        onChange={(e) => setProfileData((p) => ({ ...p, name: e.target.value }))}
+                        className={inputClass}
                         placeholder="Your full name"
                       />
                     </div>
                   </div>
 
+                  {/* Email */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Email Address</label>
                     <div className="relative">
@@ -185,13 +284,14 @@ const ProfilePage = () => {
                       <input
                         type="email"
                         value={profileData.email}
-                        onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                        className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                        onChange={(e) => setProfileData((p) => ({ ...p, email: e.target.value }))}
+                        className={inputClass}
                         placeholder="your@email.com"
                       />
                     </div>
                   </div>
 
+                  {/* Role (read-only) */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Role</label>
                     <input
@@ -200,18 +300,69 @@ const ProfilePage = () => {
                       disabled
                       className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 text-sm capitalize cursor-not-allowed"
                     />
-                    <p className="text-xs text-slate-400 mt-1">Role cannot be changed</p>
+                    <p className="text-xs text-slate-400 mt-1">Role cannot be changed after registration</p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Member Since</label>
-                    <input
-                      type="text"
-                      value={user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-                      disabled
-                      className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed"
-                    />
-                  </div>
+                  {/* ── Teacher-only fields ── */}
+                  {isTeacher && (
+                    <>
+                      <div className="pt-2 border-t border-slate-100 dark:border-slate-700">
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
+                          Teacher Details
+                        </p>
+                      </div>
+
+                      {/* Degree */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Degree</label>
+                        <div className="relative">
+                          <FaGraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                          <input
+                            type="text"
+                            value={profileData.degree}
+                            onChange={(e) => setProfileData((p) => ({ ...p, degree: e.target.value }))}
+                            className={inputClass}
+                            placeholder="e.g. M.Sc. Computer Science"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Years of Teaching */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Years of Teaching</label>
+                        <div className="relative">
+                          <FaBriefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+                          <input
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={profileData.yearsOfTeaching}
+                            onChange={(e) => setProfileData((p) => ({ ...p, yearsOfTeaching: e.target.value }))}
+                            className={inputClass}
+                            placeholder="e.g. 5"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Experience Description */}
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                          Experience Description
+                          <span className="ml-2 text-xs text-slate-400 font-normal">
+                            ({profileData.experienceDescription.length}/500)
+                          </span>
+                        </label>
+                        <textarea
+                          value={profileData.experienceDescription}
+                          onChange={(e) => setProfileData((p) => ({ ...p, experienceDescription: e.target.value }))}
+                          rows={4}
+                          maxLength={500}
+                          className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm resize-none"
+                          placeholder="Describe your teaching background, subjects, and expertise…"
+                        />
+                      </div>
+                    </>
+                  )}
 
                   <div className="pt-2">
                     <button
@@ -219,7 +370,10 @@ const ProfilePage = () => {
                       disabled={profileLoading}
                       className="px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
                     >
-                      {profileLoading ? <><FaSpinner className="animate-spin" /><span>Saving...</span></> : <><FaCheckCircle /><span>Save Changes</span></>}
+                      {profileLoading
+                        ? <><FaSpinner className="animate-spin" /><span>Saving…</span></>
+                        : <><FaCheckCircle /><span>Save Changes</span></>
+                      }
                     </button>
                   </div>
                 </form>
@@ -232,7 +386,9 @@ const ProfilePage = () => {
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                   <FaLock className="text-primary-500" /><span>Change Password</span>
                 </h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">Choose a strong password to keep your account secure.</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                  Choose a strong password to keep your account secure.
+                </p>
 
                 {passwordSuccess && (
                   <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-green-700 dark:text-green-400 text-sm flex items-center space-x-2">
@@ -252,21 +408,22 @@ const ProfilePage = () => {
                     { label: 'Confirm New Password', key: 'confirmPassword', placeholder: 'Repeat new password' },
                   ].map((field) => (
                     <div key={field.key}>
-                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{field.label}</label>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        {field.label}
+                      </label>
                       <div className="relative">
                         <FaLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
                         <input
                           type="password"
                           value={passwordData[field.key]}
-                          onChange={(e) => setPasswordData({ ...passwordData, [field.key]: e.target.value })}
+                          onChange={(e) => setPasswordData((p) => ({ ...p, [field.key]: e.target.value }))}
                           placeholder={field.placeholder}
-                          className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"
+                          className={inputClass}
                         />
                       </div>
                     </div>
                   ))}
 
-                  {/* Password strength hint */}
                   {passwordData.newPassword && (
                     <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-xs text-slate-500 dark:text-slate-400 space-y-1">
                       <p className={passwordData.newPassword.length >= 6 ? 'text-green-600 dark:text-green-400' : ''}>
@@ -286,7 +443,10 @@ const ProfilePage = () => {
                     disabled={passwordLoading}
                     className="px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-500 text-white rounded-xl font-semibold hover:from-primary-700 hover:to-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
                   >
-                    {passwordLoading ? <><FaSpinner className="animate-spin" /><span>Updating...</span></> : <><FaShieldAlt /><span>Update Password</span></>}
+                    {passwordLoading
+                      ? <><FaSpinner className="animate-spin" /><span>Updating…</span></>
+                      : <><FaShieldAlt /><span>Update Password</span></>
+                    }
                   </button>
                 </form>
               </div>
@@ -341,6 +501,10 @@ const ProfilePage = () => {
                       { label: 'Email Verified', value: user?.isEmailVerified ? '✅ Verified' : '❌ Not Verified' },
                       { label: 'Account Type', value: user?.role || 'student' },
                       { label: 'Joined', value: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A' },
+                      ...(isTeacher ? [
+                        { label: 'Degree', value: user?.degree || 'Not set' },
+                        { label: 'Teaching Experience', value: user?.yearsOfTeaching != null ? `${user.yearsOfTeaching} years` : 'Not set' },
+                      ] : []),
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-700 last:border-0">
                         <span className="text-sm text-slate-500 dark:text-slate-400">{item.label}</span>
@@ -384,7 +548,6 @@ const ProfilePage = () => {
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>
