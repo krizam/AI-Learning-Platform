@@ -5,6 +5,7 @@ import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import courseRoutes from './routes/courses.js';
+import enrollmentRoutes from './routes/enrollments.js';
 import chatRoutes from './routes/chatRoutes.js';
 
 connectDB();
@@ -21,6 +22,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
+app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/chat', chatRoutes);
 
 app.use(errorHandler);

@@ -159,7 +159,7 @@ export const courseAPI = {
 
   // Protected (student): enroll in a course
   enrollCourse: async (id) => {
-    const { data } = await api.post(`/courses/${id}/enroll`);
+    const { data } = await api.post('/enrollments', { courseId: id });
     return data;
   },
 
@@ -173,6 +173,39 @@ export const courseAPI = {
   rateCourse: async (id, rating) => {
     const { data } = await api.post(`/courses/${id}/rate`, { rating });
     return data;
+  },
+};
+
+// ── Enrollment API (requests) ───────────────────────────────────────────────────
+export const enrollmentAPI = {
+  // Student: check status for a specific course
+  getStatus: async (courseId) => {
+    const { data } = await api.get(`/enrollments/status/${courseId}`);
+    return data.enrollment;
+  },
+
+  // Student: create enrollment request
+  requestEnrollment: async (courseId) => {
+    const { data } = await api.post('/enrollments', { courseId });
+    return data.enrollment;
+  },
+
+  // Teacher/Admin: list requests for teaching courses (or all, if admin)
+  getTeachingRequests: async () => {
+    const { data } = await api.get('/enrollments/teaching');
+    return data;
+  },
+
+  // Teacher/Admin: approve
+  approve: async (id) => {
+    const { data } = await api.post(`/enrollments/${id}/approve`);
+    return data.enrollment;
+  },
+
+  // Teacher/Admin: reject
+  reject: async (id) => {
+    const { data } = await api.post(`/enrollments/${id}/reject`);
+    return data.enrollment;
   },
 };
 
