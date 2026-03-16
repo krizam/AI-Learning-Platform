@@ -689,4 +689,28 @@ router.delete(
   })
 );
 
+// GET /api/auth/admin/stats
+// Returns aggregated counts for dashboard cards.
+router.get(
+  '/admin/stats',
+  protect,
+  authorize('admin'),
+  asyncHandler(async (req, res) => {
+    const [totalUsers, totalTeachers, totalAdmins] = await Promise.all([
+      User.countDocuments({}),
+      User.countDocuments({ role: 'teacher' }),
+      User.countDocuments({ role: 'admin' }),
+    ]);
+
+    res.json({
+      success: true,
+      stats: {
+        totalUsers,
+        totalTeachers,
+        totalAdmins,
+      },
+    });
+  })
+);
+
 export default router;

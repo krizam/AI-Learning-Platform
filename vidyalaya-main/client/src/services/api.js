@@ -105,6 +105,12 @@ export const adminAPI = {
     const { data } = await api.delete(`/auth/admin/users/${id}`);
     return data;
   },
+
+  // Dashboard stats: total users / teachers / admins
+  getStats: async () => {
+    const { data } = await api.get('/auth/admin/stats');
+    return data.stats;
+  },
 };
 
 // ── Course API ────────────────────────────────────────────────────────────────

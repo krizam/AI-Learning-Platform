@@ -20,6 +20,7 @@ import ProfilePage from './pages/ProfilePage';
 import CourseLearning from './pages/CourseLearning';
 import Assignments from './pages/Assignments';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminProfile from './pages/AdminProfile';
 import AdminUsers from './pages/AdminUsers';
 import AdminTeachers from './pages/AdminTeachers';
 
@@ -210,6 +211,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/profile"
+            element={
+              <AdminRoute>
+                <AdminProfile />
               </AdminRoute>
             }
           />

@@ -1,4 +1,4 @@
-import { FaChalkboardTeacher, FaSignOutAlt, FaUserShield, FaUsers } from 'react-icons/fa';
+import { FaChalkboardTeacher, FaSignOutAlt, FaUser, FaUserShield, FaUsers } from 'react-icons/fa';
 import { NavLink } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -53,6 +53,10 @@ const AdminLayout = ({ children }) => {
           <NavLink to="/admin/teachers" className={navItemClass}>
             <FaChalkboardTeacher className="text-base" />
             <span>Teachers</span>
+          </NavLink>
+          <NavLink to="/admin/profile" className={navItemClass}>
+            <FaUser className="text-base" />
+            <span>Profile</span>
           </NavLink>
         </nav>
       </aside>
