@@ -79,7 +79,13 @@ const Signup = () => {
         }),
       };
       await signup(payload);
-      navigate(role === 'teacher' ? '/teacher/dashboard' : '/dashboard');
+      navigate('/verify-otp', {
+        state: {
+          email: formData.email,
+          from: 'signup',
+          role,
+        },
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {

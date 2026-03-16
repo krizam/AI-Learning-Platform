@@ -1,13 +1,12 @@
+import './config/env.js'; // ← must be first — loads dotenv before any other module
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import courseRoutes from './routes/courses.js';
-import chatRoutes from './routes/chatRoutes.js'; // ← Add this
+import chatRoutes from './routes/chatRoutes.js';
 
-dotenv.config();
 connectDB();
 
 const app = express();
@@ -21,8 +20,8 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/courses', courseRoutes);  
-app.use('/api/chat', chatRoutes); // ← Add this
+app.use('/api/courses', courseRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.use(errorHandler);
 
@@ -30,5 +29,4 @@ const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-
 });

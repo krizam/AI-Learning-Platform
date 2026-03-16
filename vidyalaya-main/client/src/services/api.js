@@ -26,12 +26,36 @@ export const authAPI = {
   // signup accepts a full payload object (including teacher fields)
   signup: async (payload) => {
     const { data } = await api.post('/auth/register', payload);
-    return { token: data.token, user: data.user };
+    return data;
   },
 
   getMe: async () => {
     const { data } = await api.get('/auth/me');
     return data.user;
+  },
+
+  verifyOtp: async (email, otp) => {
+    const { data } = await api.post('/auth/verify-otp', { email, otp });
+    return { token: data.token, user: data.user };
+  },
+
+  resendSignupOtp: async (email) => {
+    const { data } = await api.post('/auth/resend-signup-otp', { email });
+    return data;
+  },
+
+  forgotPassword: async (email) => {
+    const { data } = await api.post('/auth/forgot-password', { email });
+    return data;
+  },
+
+  resetPasswordWithOtp: async (email, otp, newPassword) => {
+    const { data } = await api.post('/auth/reset-password', {
+      email,
+      otp,
+      newPassword,
+    });
+    return data;
   },
 
   // updateProfile accepts a full payload object now (name, email + teacher fields)
@@ -53,6 +77,33 @@ export const authAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return data.user;
+  },
+};
+
+// ── Admin API (user/teacher management) ───────────────────────────────────────
+export const adminAPI = {
+  // List users; optional filters via params (e.g. { role: 'teacher' })
+  getUsers: async (params = {}) => {
+    const { data } = await api.get('/auth/admin/users', { params });
+    return data.users;
+  },
+
+  // Create a new user (student/teacher/admin)
+  createUser: async (payload) => {
+    const { data } = await api.post('/auth/admin/users', payload);
+    return data.user;
+  },
+
+  // Update an existing user
+  updateUser: async (id, payload) => {
+    const { data } = await api.put(`/auth/admin/users/${id}`, payload);
+    return data.user;
+  },
+
+  // Delete a user
+  deleteUser: async (id) => {
+    const { data } = await api.delete(`/auth/admin/users/${id}`);
+    return data;
   },
 };
 
