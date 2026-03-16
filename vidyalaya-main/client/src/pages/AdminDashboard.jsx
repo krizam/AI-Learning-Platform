@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import { FaChalkboardTeacher, FaUserShield, FaUsers } from 'react-icons/fa';
-import { adminAPI } from '../services/api';
+import { FaChalkboardTeacher, FaUserShield, FaUsers, FaSpinner } from 'react-icons/fa';
+import { adminAPI, enrollmentAPI } from '../services/api';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -11,6 +11,9 @@ const AdminDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [enrollments, setEnrollments] = useState([]);
+  const [enrollmentLoading, setEnrollmentLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -35,7 +38,26 @@ const AdminDashboard = () => {
       }
     };
 
+    const fetchEnrollments = async () => {
+      setEnrollmentLoading(true);
+      try {
+        const data = await enrollmentAPI.getTeachingRequests();
+        if (isMounted) {
+          setEnrollments(data.enrollments || []);
+        }
+      } catch {
+        if (isMounted) {
+          setEnrollments([]);
+        }
+      } finally {
+        if (isMounted) {
+          setEnrollmentLoading(false);
+        }
+      }
+    };
+
     fetchStats();
+    fetchEnrollments();
 
     return () => {
       isMounted = false;
@@ -102,6 +124,56 @@ const AdminDashboard = () => {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">
+            Enrollment Requests
+          </h2>
+          {enrollmentLoading ? (
+            <div className="flex items-center justify-center py-6 text-slate-500 dark:text-slate-400 text-sm gap-2">
+              <FaSpinner className="animate-spin" />
+              <span>Loading requests…</span>
+            </div>
+          ) : enrollments.length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              No enrollment requests yet.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {enrollments.slice(0, 8).map((req) => (
+                <div
+                  key={req.id}
+                  className="flex items-center justify-between gap-3 text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 rounded-xl px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 dark:text-white truncate">
+                      {req.studentName}
+                    </p>
+                    <p className="text-slate-500 dark:text-slate-400 truncate">
+                      {req.courseTitle}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-slate-400">
+                      {new Date(req.createdAt).toLocaleDateString()}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full font-semibold capitalize ${
+                        req.status === 'pending'
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                          : req.status === 'approved'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                      }`}
+                    >
+                      {req.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
