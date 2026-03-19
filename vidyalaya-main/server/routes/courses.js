@@ -17,6 +17,7 @@ const formatCourse = (course, userId) => ({
   instructor: course.instructor,
   duration: course.duration,
   image: course.image,
+  price: course.price ?? 0,
   color: course.color,
   rating: course.rating,
   totalRatings: course.totalRatings,
@@ -161,6 +162,10 @@ router.post(
       .withMessage('Invalid level'),
     body('instructor').trim().notEmpty().withMessage('Instructor name is required'),
     body('duration').trim().notEmpty().withMessage('Duration is required'),
+    body('price')
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage('Price must be a number >= 0'),
   ],
   asyncHandler(async (req, res) => {
     // Role check
@@ -173,7 +178,7 @@ router.post(
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { title, description, category, level, instructor, duration, image, color } = req.body;
+    const { title, description, category, level, instructor, duration, image, color, price } = req.body;
 
     const course = await Course.create({
       title,
@@ -184,6 +189,7 @@ router.post(
       duration,
       image: image || '',
       color: color || 'from-blue-500 to-cyan-500',
+      price: price != null ? Number(price) : 0,
       createdBy: req.user._id,
     });
 
@@ -212,10 +218,10 @@ router.put(
       return res.status(403).json({ success: false, message: 'Not authorized to update this course' });
     }
 
-    const allowedFields = ['title', 'description', 'category', 'level', 'instructor', 'duration', 'image', 'color', 'isPublished'];
+    const allowedFields = ['title', 'description', 'category', 'level', 'instructor', 'duration', 'image', 'color', 'isPublished', 'price'];
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
-        course[field] = req.body[field];
+        course[field] = field === 'price' ? Number(req.body[field]) : req.body[field];
       }
     });
 

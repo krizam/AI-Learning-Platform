@@ -209,4 +209,51 @@ export const enrollmentAPI = {
   },
 };
 
+// ── Payment API (Khalti) ───────────────────────────────────────────────────────
+export const paymentAPI = {
+  // Initiate Khalti checkout for an approved paid enrollment
+  // POST /api/payments/initiate { enrollmentId }
+  initiate: async (enrollmentId) => {
+    const { data } = await api.post('/payments/initiate', { enrollmentId });
+    return data;
+  },
+
+  // Verify Khalti payment after redirect back to /payment/verify?pidx=...
+  // POST /api/payments/verify { pidx }
+  verify: async (pidx) => {
+    const { data } = await api.post('/payments/verify', { pidx });
+    return data;
+  },
+
+  // Optional utility: student's own payment history
+  history: async () => {
+    const { data } = await api.get('/payments/history');
+    return data;
+  },
+
+  // Teacher: payment history for courses created by the current teacher
+  teacherHistory: async () => {
+    const { data } = await api.get('/payments/teacher/history');
+    return data;
+  },
+
+  // Download PDF receipt for a completed payment
+  // Returns a Blob
+  downloadReceipt: async (paymentId) => {
+    const res = await api.get(`/payments/${paymentId}/receipt`, {
+      responseType: 'blob',
+    });
+    return res.data;
+  },
+
+  // Teacher: download payment record PDF (teacher-owned course payment)
+  // Returns a Blob
+  downloadTeacherReceipt: async (paymentId) => {
+    const res = await api.get(`/payments/teacher/${paymentId}/receipt`, {
+      responseType: 'blob',
+    });
+    return res.data;
+  },
+};
+
 export default api;

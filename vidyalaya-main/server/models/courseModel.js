@@ -37,6 +37,12 @@ const courseSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Course price in NPR. 0 means free course.
+    price: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     color: {
       type: String,
       default: 'from-blue-500 to-cyan-500',

@@ -10,6 +10,7 @@ import {
   FaTimes,
   FaClipboardList,
   FaPlay,
+  FaReceipt,
 } from 'react-icons/fa';
 
 const SIDEBAR_ITEMS = [
@@ -17,6 +18,7 @@ const SIDEBAR_ITEMS = [
   { label: 'My Courses',     icon: FaBook,         path: '/my-courses',              color: 'text-primary-600 dark:text-primary-400', bg: 'bg-primary-50 dark:bg-primary-900/20' },
   { label: 'Learning',       icon: FaPlay,         path: '/student/course/1/learn',  color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-50 dark:bg-orange-900/20'  },
   { label: 'Assignments',    icon: FaClipboardList,path: '/student/assignments',     color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-900/20'   },
+  { label: 'Payment History',icon: FaReceipt,      path: '/student/payments',        color: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
   { label: 'My Profile',     icon: FaUser,         path: '/profile',                 color: 'text-green-600 dark:text-green-400',   bg: 'bg-green-50 dark:bg-green-900/20'   },
   { label: 'Explore Courses',icon: FaCompass,      path: '/explore-courses',         color: 'text-cyan-600 dark:text-cyan-400',     bg: 'bg-cyan-50 dark:bg-cyan-900/20'     },
   { label: 'AI Tutor',       icon: FaRobot,        path: '/ai-tutor',                color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20' },
@@ -33,6 +35,9 @@ const StudentSidebar = () => {
     }
     if (item.label === 'Assignments') {
       return location.pathname.startsWith('/student/assignments');
+    }
+    if (item.label === 'Payment History') {
+      return location.pathname.startsWith('/student/payments');
     }
     return location.pathname === item.path;
   };

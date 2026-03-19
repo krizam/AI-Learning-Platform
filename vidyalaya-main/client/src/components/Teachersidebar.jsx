@@ -7,6 +7,7 @@ import {
   FaArrowRight,
   FaBars,
   FaTimes,
+  FaReceipt,
 } from 'react-icons/fa';
 
 const SIDEBAR_ITEMS = [
@@ -17,6 +18,14 @@ const SIDEBAR_ITEMS = [
     color: 'text-amber-600 dark:text-amber-400',
     bg: 'bg-amber-50 dark:bg-amber-900/20',
     border: 'border-l-amber-500',
+  },
+  {
+    label: 'Payment History',
+    icon: FaReceipt,
+    path: '/teacher/payments',
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/20',
+    border: 'border-l-indigo-500',
   },
   {
     label: 'My Courses',

@@ -85,6 +85,7 @@ const StudentDashboard = () => {
     fetchEnrolled();
   }, []);
 
+
   const totalProgress =
     enrolledCourses.length > 0
       ? Math.round(enrolledCourses.reduce((acc, _, i) => acc + (MOCK_PROGRESS[i] ?? 50), 0) / enrolledCourses.length)

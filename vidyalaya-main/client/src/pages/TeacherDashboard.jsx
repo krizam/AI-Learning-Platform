@@ -46,6 +46,7 @@ const EMPTY_FORM = {
   instructor: '',
   duration: '',
   image: '',
+  price: 0,
   color: 'from-blue-500 to-cyan-500',
 };
 
@@ -126,6 +127,21 @@ const CourseModal = ({ initial, onClose, onSave, loading, error }) => {
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Cover Image URL (optional)</label>
               <input type="url" value={form.image} onChange={(e) => set('image', e.target.value)}
                 className={inputClass} placeholder="https://..." />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Course Price (NPR) <span className="text-xs text-slate-400 font-normal">(0 = free)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={form.price}
+                onChange={(e) => set('price', e.target.value === '' ? 0 : Number(e.target.value))}
+                className={inputClass}
+                placeholder="0"
+              />
             </div>
 
             <div className="sm:col-span-2">

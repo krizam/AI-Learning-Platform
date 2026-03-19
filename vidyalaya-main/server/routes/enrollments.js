@@ -8,13 +8,17 @@ const router = express.Router();
 
 // ─── Helper to shape response ───────────────────────────────────────────────────
 const formatEnrollment = (enrollment) => ({
+  // Provide BOTH `_id` and `id` so old/new frontend code can consume it safely
+  _id: enrollment._id,
   id: enrollment._id,
-  studentId: enrollment.student._id || enrollment.student,
-  studentName: enrollment.student.name,
-  courseId: enrollment.course._id || enrollment.course,
-  courseTitle: enrollment.course.title,
+  studentId: enrollment.student?._id || enrollment.student,
+  studentName: enrollment.student?.name,
+  courseId: enrollment.course?._id || enrollment.course,
+  courseTitle: enrollment.course?.title,
   status: enrollment.status,
   paymentStatus: enrollment.paymentStatus,
+  paidAt: enrollment.paidAt || null,
+  transactionId: enrollment.transactionId || null,
   createdAt: enrollment.createdAt,
 });
 
@@ -76,7 +80,7 @@ router.post(
       student: req.user._id,
       course: course._id,
       status: 'pending',
-      paymentStatus: 'pending',
+      paymentStatus: course.price && course.price > 0 ? 'pending' : 'not_required',
     });
 
     const populated = await enrollment.populate([
@@ -107,9 +111,7 @@ router.get(
       .populate('student', 'name')
       .populate('course', 'title');
 
-    if (!enrollment) {
-      return res.json({ success: true, enrollment: null });
-    }
+    if (!enrollment) return res.status(404).json({ success: false, message: 'No enrollment request found' });
 
     res.json({
       success: true,
@@ -187,17 +189,29 @@ router.post(
       });
     }
 
-    enrollment.status = 'approved';
-    await enrollment.save();
+    const isPaidCourse = !!(course.price && course.price > 0);
 
-    // Add student to course if not already present
-    const alreadyStudent = course.students.some(
-      (id) => id.toString() === enrollment.student.toString()
-    );
-    if (!alreadyStudent) {
-      course.students.push(enrollment.student);
-      course.enrollmentCount = course.students.length;
-      await course.save();
+    // Free course: teacher approval immediately enrolls the student.
+    // Paid course: teacher approval only marks "approved" so the student can pay next.
+    if (isPaidCourse) {
+      enrollment.status = 'approved';
+      // paymentStatus stays 'pending' until Khalti verification marks it 'paid'
+      if (enrollment.paymentStatus !== 'pending') enrollment.paymentStatus = 'pending';
+      await enrollment.save();
+    } else {
+      enrollment.status = 'enrolled';
+      enrollment.paymentStatus = 'not_required';
+      await enrollment.save();
+
+      // Add student to course if not already present
+      const alreadyStudent = course.students.some(
+        (id) => id.toString() === enrollment.student.toString()
+      );
+      if (!alreadyStudent) {
+        course.students.push(enrollment.student);
+        course.enrollmentCount = course.students.length;
+        await course.save();
+      }
     }
 
     const populated = await enrollment.populate([

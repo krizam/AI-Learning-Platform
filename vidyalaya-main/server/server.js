@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import courseRoutes from './routes/courses.js';
 import enrollmentRoutes from './routes/enrollments.js';
 import chatRoutes from './routes/chatRoutes.js';
+import paymentRoutes from './routes/payment.route.js';
 
 connectDB();
 
@@ -24,6 +25,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.use(errorHandler);
 
