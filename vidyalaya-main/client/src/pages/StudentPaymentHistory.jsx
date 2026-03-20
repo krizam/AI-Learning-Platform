@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+// StudentPaymentHistory.jsx
+
+// ── React & routing ───────────────────────────────────────────────────────────
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// ── API ───────────────────────────────────────────────────────────────────────
 import { paymentAPI } from '../services/api';
+
+// ── Layout shell ──────────────────────────────────────────────────────────────
 import StudentShell from '../components/StudentShell';
+
+// ── Icons (react-icons/fa only) ───────────────────────────────────────────────
 import {
   FaSpinner,
   FaReceipt,
@@ -9,30 +18,46 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaClock,
+  FaExclamationCircle,
 } from 'react-icons/fa';
 
-// Student Payment History page (dedicated sidebar tab)
-// - Lists the logged-in student's payments using existing Khalti payment records
-// - Allows downloading a PDF receipt per completed payment
+// ─────────────────────────────────────────────────────────────────────────────
+// Status display metadata — defined at module level (not inside the component)
+// since it never changes and does not depend on any props or state.
+// ─────────────────────────────────────────────────────────────────────────────
+const STATUS_META = {
+  completed: {
+    label: 'Completed',
+    icon:  FaCheckCircle,
+    pill:  'bg-green-100 text-green-700',
+  },
+  pending: {
+    label: 'Pending',
+    icon:  FaClock,
+    pill:  'bg-amber-100 text-amber-700',
+  },
+  failed: {
+    label: 'Failed',
+    icon:  FaTimesCircle,
+    pill:  'bg-red-100 text-red-700',
+  },
+};
+
+// =============================================================================
+// StudentPaymentHistory
+// Lists the student's Khalti payment records and allows PDF receipt download.
+// =============================================================================
 const StudentPaymentHistory = () => {
   const navigate = useNavigate();
 
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [payments,      setPayments]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
-  const [error, setError] = useState('');
 
-  const statusMeta = useMemo(
-    () => ({
-      completed: { label: 'Completed', icon: FaCheckCircle, pill: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
-      pending: { label: 'Pending', icon: FaClock, pill: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
-      failed: { label: 'Failed', icon: FaTimesCircle, pill: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
-    }),
-    []
-  );
-
+  // Fetch payment history on mount (API call unchanged)
   useEffect(() => {
-    const run = async () => {
+    const loadPayments = async () => {
       setLoading(true);
       setError('');
       try {
@@ -45,93 +70,131 @@ const StudentPaymentHistory = () => {
         setLoading(false);
       }
     };
-    run();
+    loadPayments();
   }, []);
 
+  // ── Receipt download ────────────────────────────────────────────────────────
+  // Creates a temporary anchor element, triggers the browser download, then
+  // cleans up the object URL to avoid memory leaks.
   const downloadReceipt = async (payment) => {
     try {
       setDownloadingId(payment._id);
-      const blob = await paymentAPI.downloadReceipt(payment._id);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `vidyalaya-receipt-${payment.transactionId || payment.pidx || payment._id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const blob     = await paymentAPI.downloadReceipt(payment._id);
+      const url      = window.URL.createObjectURL(blob);
+      const anchor   = document.createElement('a');
+      anchor.href    = url;
+      anchor.download = `vidyalaya-receipt-${payment.transactionId || payment.pidx || payment._id}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
       window.URL.revokeObjectURL(url);
     } finally {
       setDownloadingId(null);
     }
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <StudentShell>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-        <div className="flex items-start justify-between gap-4 mb-5">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Payment History</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              All payments you made for paid courses (Khalti).
-            </p>
-          </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+
+        {/* Page header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-slate-900">Payment History</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            All payments you made for paid courses via Khalti.
+          </p>
         </div>
 
-        {loading ? (
+        {/* ── Loading ── */}
+        {loading && (
           <div className="flex justify-center py-12">
-            <FaSpinner className="text-2xl text-primary-500 animate-spin" />
+            <FaSpinner className="text-2xl text-blue-500 animate-spin" />
           </div>
-        ) : error ? (
-          <div className="p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
-            {error}
+        )}
+
+        {/* ── Error banner ── */}
+        {!loading && error && (
+          <div
+            role="alert"
+            className="flex items-center gap-2 p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm"
+          >
+            <FaExclamationCircle className="flex-shrink-0" />
+            <span>{error}</span>
           </div>
-        ) : payments.length === 0 ? (
-          <div className="text-center py-12 text-sm text-slate-500 dark:text-slate-400">
-            No payments found yet.
+        )}
+
+        {/* ── Empty state ── */}
+        {!loading && !error && payments.length === 0 && (
+          <div className="text-center py-12">
+            <FaReceipt className="text-4xl text-slate-200 mx-auto mb-3" />
+            <p className="text-sm text-slate-500">No payments found yet.</p>
           </div>
-        ) : (
+        )}
+
+        {/* ── Payment list ── */}
+        {!loading && !error && payments.length > 0 && (
           <div className="space-y-3">
             {payments.map((p) => {
-              const meta = statusMeta[p.status] || statusMeta.pending;
+              // Fall back to 'pending' if the status value is unexpected
+              const meta       = STATUS_META[p.status] || STATUS_META.pending;
               const StatusIcon = meta.icon;
-              const paidDate = p.paidAt || p.updatedAt || p.createdAt;
+              const paidDate   = p.paidAt || p.updatedAt || p.createdAt;
+              const isDownloading = downloadingId === p._id;
 
               return (
                 <div
                   key={p._id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-slate-100 bg-slate-50 hover:border-slate-200 transition-colors"
                 >
+                  {/* Course info + meta */}
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                    <p className="text-sm font-semibold text-slate-900 truncate">
                       {p.course?.title || 'Course'}
                     </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <span>Amount: NPR {Number(p.amount || 0).toLocaleString()}</span>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                      <span>NPR {Number(p.amount || 0).toLocaleString()}</span>
+
+                      {/* Status pill with icon */}
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold ${meta.pill}`}>
                         <StatusIcon className="text-[11px]" />
-                        <span>{meta.label}</span>
+                        {meta.label}
                       </span>
-                      {paidDate && <span>Date: {new Date(paidDate).toLocaleString()}</span>}
+
+                      {paidDate && (
+                        <span>{new Date(paidDate).toLocaleDateString()}</span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+
+                    {/* View course */}
                     <button
                       onClick={() => p.course?._id && navigate(`/course/${p.course._id}`)}
-                      className="px-3 py-2 rounded-lg text-sm font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors inline-flex items-center gap-2"
+                      className="px-3 py-2 rounded-lg text-sm font-medium bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
                     >
                       <FaExternalLinkAlt className="text-xs" />
-                      View course
+                      View
                     </button>
 
+                    {/* Download receipt — only available for completed payments */}
                     <button
-                      disabled={p.status !== 'completed' || downloadingId === p._id}
+                      disabled={p.status !== 'completed' || isDownloading}
                       onClick={() => downloadReceipt(p)}
-                      className="px-3 py-2 rounded-lg text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2"
-                      title={p.status !== 'completed' ? 'Receipt is available only for completed payments' : 'Download receipt PDF'}
+                      title={
+                        p.status !== 'completed'
+                          ? 'Receipt available for completed payments only'
+                          : 'Download PDF receipt'
+                      }
+                      className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1"
                     >
-                      {downloadingId === p._id ? <FaSpinner className="animate-spin" /> : <FaReceipt />}
-                      Download PDF
+                      {isDownloading
+                        ? <FaSpinner className="animate-spin" />
+                        : <FaReceipt />
+                      }
+                      Receipt
                     </button>
                   </div>
                 </div>
@@ -145,4 +208,3 @@ const StudentPaymentHistory = () => {
 };
 
 export default StudentPaymentHistory;
-

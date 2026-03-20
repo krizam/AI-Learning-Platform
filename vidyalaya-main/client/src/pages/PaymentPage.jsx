@@ -1,17 +1,24 @@
-// pages/PaymentPage.jsx  ← NEW FILE
+// PaymentPage.jsx
 //
 // Shown after a teacher approves a paid course enrollment.
 // Reached via: navigate('/payment', { state: { enrollmentId, courseData } })
 //
-// On "Pay Now": calls paymentAPI.initiate(enrollmentId) which returns
-//   { data: { payment_url, pidx, ... } }
-// Then: window.location.href = payment_url  (same as RentPal pattern)
-// Khalti will redirect back to /payment/verify?pidx=...
+// Flow:
+//   1. Student lands here from CourseDetail after teacher approval
+//   2. "Pay Now" calls paymentAPI.initiate(enrollmentId)
+//   3. Backend returns { data: { payment_url, pidx, ... } }
+//   4. window.location.href = payment_url — browser goes to Khalti checkout
+//   5. Khalti redirects back to /payment/verify?pidx=...
 
+// ── React & routing ───────────────────────────────────────────────────────────
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
+// ── Auth & API ────────────────────────────────────────────────────────────────
 import { useAuth } from '../context/AuthContext';
 import { paymentAPI } from '../services/api';
+
+// ── Icons (react-icons/fa only) ───────────────────────────────────────────────
 import {
   FaSpinner,
   FaArrowLeft,
@@ -24,39 +31,36 @@ import {
   FaExclamationCircle,
 } from 'react-icons/fa';
 
+// =============================================================================
+// PaymentPage
+// =============================================================================
 const PaymentPage = () => {
-  const { state } = useLocation();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const { state }  = useLocation();
+  const navigate   = useNavigate();
+  const { user }   = useAuth();
 
-  // Both passed from CourseDetail via navigate('/payment', { state: { ... } })
+  // Both values are passed from CourseDetail via navigate('/payment', { state })
   const { enrollmentId, courseData } = state || {};
 
   const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentError, setPaymentError] = useState('');
+  const [paymentError,   setPaymentError]   = useState('');
 
-  // Guard: if navigated directly without state, go back to explore
+  // Guard: redirect to login if unauthenticated, or back to explore if state is missing
   useEffect(() => {
     if (!user) { navigate('/login', { replace: true }); return; }
-    if (!enrollmentId || !courseData) {
-      navigate('/explore-courses', { replace: true });
-    }
+    if (!enrollmentId || !courseData) navigate('/explore-courses', { replace: true });
   }, [user, enrollmentId, courseData, navigate]);
 
   if (!enrollmentId || !courseData) return null;
 
+  // ── Payment handler (logic unchanged) ──────────────────────────────────────
   const handleKhaltiPayment = async () => {
     setPaymentLoading(true);
     setPaymentError('');
-
     try {
-      // paymentAPI.initiate returns the full response object:
-      //   { message, payment_method, data: { payment_url, pidx, expires_at, ... } }
       const response = await paymentAPI.initiate(enrollmentId);
-
       if (response?.data?.payment_url) {
-        // Redirect the browser to Khalti's hosted checkout page.
-        // Khalti will send the student back to /payment/verify?pidx=...
+        // Hand off to Khalti's hosted checkout — they redirect back to /payment/verify
         window.location.href = response.data.payment_url;
       } else {
         setPaymentError('Could not get payment URL from Khalti. Please try again.');
@@ -70,6 +74,7 @@ const PaymentPage = () => {
     }
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 px-4 flex items-center justify-center">
       <div className="w-full max-w-lg">
@@ -77,7 +82,7 @@ const PaymentPage = () => {
         {/* Back button */}
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center space-x-2 text-slate-500 hover:text-slate-700 mb-6 text-sm transition-colors"
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-700 mb-6 text-sm transition-colors focus:outline-none focus:underline"
         >
           <FaArrowLeft /><span>Back to Course</span>
         </button>
@@ -86,7 +91,7 @@ const PaymentPage = () => {
 
           {/* Header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
-            <div className="flex items-center space-x-3 mb-1">
+            <div className="flex items-center gap-3 mb-1">
               <FaGraduationCap className="text-2xl" />
               <h1 className="text-xl font-bold">Complete Enrollment</h1>
             </div>
@@ -97,8 +102,8 @@ const PaymentPage = () => {
 
           <div className="p-6 space-y-6">
 
-            {/* Course summary */}
-            <div className="flex items-start space-x-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+            {/* Course summary card */}
+            <div className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
               {courseData.thumbnail && (
                 <img
                   src={courseData.thumbnail}
@@ -113,14 +118,14 @@ const PaymentPage = () => {
                 </h2>
                 <div className="flex flex-wrap gap-3 text-xs text-slate-500">
                   {courseData.duration && (
-                    <span className="flex items-center space-x-1">
-                      <FaClock className="text-blue-400" /><span>{courseData.duration}</span>
+                    <span className="flex items-center gap-1">
+                      <FaClock className="text-blue-400" />{courseData.duration}
                     </span>
                   )}
                   {courseData.enrollmentCount != null && (
-                    <span className="flex items-center space-x-1">
+                    <span className="flex items-center gap-1">
                       <FaUsers className="text-blue-400" />
-                      <span>{Number(courseData.enrollmentCount).toLocaleString()} students</span>
+                      {Number(courseData.enrollmentCount).toLocaleString()} students
                     </span>
                   )}
                 </div>
@@ -139,27 +144,32 @@ const PaymentPage = () => {
               </div>
               <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-slate-900">
                 <span>Total</span>
-                <span className="text-blue-700 text-lg">NPR {Number(courseData.price).toLocaleString()}</span>
+                <span className="text-blue-700 text-lg">
+                  NPR {Number(courseData.price).toLocaleString()}
+                </span>
               </div>
             </div>
 
-            {/* What you get */}
+            {/* Benefit checklist */}
             <div className="space-y-2">
               {[
                 'Full lifetime access to course content',
                 'AI Tutor support available 24/7',
                 'Certificate of completion',
               ].map((item) => (
-                <div key={item} className="flex items-center space-x-2 text-sm text-slate-600">
+                <div key={item} className="flex items-center gap-2 text-sm text-slate-600">
                   <FaCheckCircle className="text-green-500 flex-shrink-0" />
                   <span>{item}</span>
                 </div>
               ))}
             </div>
 
-            {/* Error */}
+            {/* Error banner */}
             {paymentError && (
-              <div className="flex items-start space-x-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              <div
+                role="alert"
+                className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm"
+              >
                 <FaExclamationCircle className="flex-shrink-0 mt-0.5" />
                 <span>{paymentError}</span>
               </div>
@@ -169,11 +179,13 @@ const PaymentPage = () => {
             <button
               onClick={handleKhaltiPayment}
               disabled={paymentLoading}
-              className={`w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center space-x-2 transition-all shadow-lg ${
+              className={[
+                'w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2',
+                'transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2',
                 paymentLoading
                   ? 'bg-indigo-300 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl active:scale-95'
-              }`}
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl active:scale-95',
+              ].join(' ')}
             >
               {paymentLoading ? (
                 <><FaSpinner className="animate-spin" /><span>Redirecting to Khalti…</span></>
@@ -183,10 +195,9 @@ const PaymentPage = () => {
             </button>
 
             {/* Security note */}
-            <div className="flex items-center justify-center space-x-2 text-xs text-slate-400">
+            <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
               <FaShieldAlt /><span>256-bit SSL encrypted · Powered by Khalti</span>
             </div>
-
           </div>
         </div>
       </div>
