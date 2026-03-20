@@ -17,9 +17,11 @@ import CourseDetail from './pages/CourseDetail';
 import AITutorChat from './pages/AITutorChat';
 import StudentDashboard from './pages/StudentDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
+import TeacherCourseAssetsUpload from './pages/TeacherCourseAssetsUpload';
 import MyCourses from './pages/MyCourses';
 import ProfilePage from './pages/ProfilePage';
 import CourseLearning from './pages/CourseLearning';
+import StudentLearningHome from './pages/StudentLearningHome';
 import Assignments from './pages/Assignments';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminProfile from './pages/AdminProfile';
@@ -111,6 +113,11 @@ function App() {
           {/* ── Teacher-only Routes (unchanged) ── */}
           <Route path="/teacher/dashboard" element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
           <Route path="/teacher/courses"   element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
+          <Route path="/teacher/create-course" element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
+          <Route
+            path="/teacher/courses/:courseId/assets"
+            element={<TeacherRoute><TeacherCourseAssetsUpload /></TeacherRoute>}
+          />
           <Route path="/teacher/payments"  element={<TeacherRoute><TeacherPaymentHistory /></TeacherRoute>} />
 
           {/* ── Admin Routes (unchanged) ── */}
@@ -121,6 +128,7 @@ function App() {
 
           {/* ── Student sub-routes (unchanged) ── */}
           <Route path="/student/course/:courseId/learn" element={<ProtectedRoute><CourseLearning /></ProtectedRoute>} />
+          <Route path="/student/learning" element={<ProtectedRoute><StudentLearningHome /></ProtectedRoute>} />
           <Route path="/student/assignments"            element={<ProtectedRoute><Assignments /></ProtectedRoute>} />
           <Route path="/student/payments"               element={<ProtectedRoute><StudentPaymentHistory /></ProtectedRoute>} />
 

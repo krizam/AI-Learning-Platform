@@ -3,29 +3,17 @@ import { body, validationResult } from 'express-validator';
 import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import nodemailer from 'nodemailer';
 import User from '../models/User.js';
 import { protect, authorize } from '../middleware/auth.js';
+import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 
 const router = express.Router();
 
 // ── Multer setup for avatar uploads ─────────────────────────────────────────
-const avatarStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = 'uploads/avatars';
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `avatar-${req.user._id}-${Date.now()}${ext}`);
-  },
-});
-
+// Using memoryStorage so files go straight to Cloudinary (no local disk).
 const avatarUpload = multer({
-  storage: avatarStorage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) cb(null, true);
@@ -460,12 +448,17 @@ router.post(
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // Build a publicly accessible URL (assumes Express serves /uploads statically)
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const { url } = await uploadToCloudinary({
+      buffer: req.file.buffer,
+      mimetype: req.file.mimetype,
+      folder: 'avatars',
+      resourceType: 'image',
+      overwrite: true,
+    });
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { avatar: avatarUrl },
+      { avatar: url },
       { new: true }
     );
 

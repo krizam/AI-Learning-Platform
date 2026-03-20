@@ -8,6 +8,7 @@ import {
   FaBars,
   FaTimes,
   FaReceipt,
+  FaPlus,
 } from 'react-icons/fa';
 
 const SIDEBAR_ITEMS = [
@@ -26,6 +27,14 @@ const SIDEBAR_ITEMS = [
     color: 'text-indigo-600 dark:text-indigo-400',
     bg: 'bg-indigo-50 dark:bg-indigo-900/20',
     border: 'border-l-indigo-500',
+  },
+  {
+    label: 'Create Course',
+    icon: FaPlus,
+    path: '/teacher/create-course',
+    color: 'text-amber-700 dark:text-amber-400',
+    bg: 'bg-amber-50 dark:bg-amber-900/20',
+    border: 'border-l-amber-500',
   },
   {
     label: 'My Courses',
@@ -52,9 +61,8 @@ const TeacherSidebar = () => {
 
   const isActive = (item) => {
     if (item.path === '/teacher/courses') {
-      // active on both /teacher/dashboard (courses section) and /teacher/courses
-      return location.pathname === '/teacher/courses' ||
-             (location.pathname === '/teacher/dashboard' && false);
+      // Keep "My Courses" highlighted for nested course pages (assets upload).
+      return location.pathname === '/teacher/courses' || location.pathname.startsWith('/teacher/courses/');
     }
     return location.pathname === item.path ||
            location.pathname.startsWith(item.path + '/');

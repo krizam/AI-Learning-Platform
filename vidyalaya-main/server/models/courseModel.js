@@ -37,6 +37,20 @@ const courseSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // Cloudinary `public_id` for the thumbnail image.
+    imagePublicId: {
+      type: String,
+      default: '',
+    },
+
+    // Uploaded course videos (Cloudinary `resource_type: "video"`).
+    videos: [
+      {
+        title: { type: String, required: true, trim: true, maxlength: 200 },
+        url: { type: String, required: true },
+        public_id: { type: String, required: true },
+      },
+    ],
     // Course price in NPR. 0 means free course.
     price: {
       type: Number,

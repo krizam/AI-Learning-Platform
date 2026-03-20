@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
 import StudentShell from '../components/StudentShell';
+import CloudinaryAvatarUpload from '../components/uploads/CloudinaryAvatarUpload';
 import {
   FaUser, FaEnvelope, FaLock, FaCamera, FaCheckCircle,
   FaExclamationCircle, FaSpinner, FaShieldAlt, FaBell,
@@ -12,7 +13,6 @@ import {
 const ProfilePage = () => {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
 
   const isTeacher = user?.role === 'teacher';
 
@@ -43,10 +43,7 @@ const ProfilePage = () => {
   const [profileSuccess, setProfileSuccess] = useState('');
   const [profileError, setProfileError] = useState('');
 
-  // ── Avatar state ─────────────────────────────────────────────────────────
-  const [avatarPreview, setAvatarPreview] = useState('');
-  const [avatarLoading, setAvatarLoading] = useState(false);
-  const [avatarError, setAvatarError] = useState('');
+  // Avatar upload handled by `CloudinaryAvatarUpload`
 
   // ── Password state ───────────────────────────────────────────────────────
   const [passwordData, setPasswordData] = useState({
@@ -92,22 +89,7 @@ const ProfilePage = () => {
     }
   };
 
-  const handleAvatarSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setAvatarPreview(URL.createObjectURL(file));
-    setAvatarLoading(true);
-    setAvatarError('');
-    try {
-      const updatedUser = await authAPI.uploadAvatar(file);
-      updateUser(updatedUser);
-    } catch (err) {
-      setAvatarError(err.response?.data?.message || 'Failed to upload avatar');
-      setAvatarPreview('');
-    } finally {
-      setAvatarLoading(false);
-    }
-  };
+  // Avatar select/upload is handled inside CloudinaryAvatarUpload
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -139,9 +121,7 @@ const ProfilePage = () => {
     { id: 'account', label: 'Account', icon: FaShieldAlt },
   ];
 
-  // Compute avatar display
-  const avatarSrc = avatarPreview || user?.avatar || '';
-  const avatarInitial = user?.name?.charAt(0)?.toUpperCase() || 'U';
+  // Compute avatar display is handled inside CloudinaryAvatarUpload
 
   const inputClass =
     'w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm';
@@ -163,41 +143,7 @@ const ProfilePage = () => {
 
             {/* Avatar Card */}
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 text-center mb-4">
-              <div className="relative inline-block mb-4">
-                {/* Avatar image or initial */}
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white text-3xl font-bold mx-auto overflow-hidden ring-4 ring-primary-100 dark:ring-primary-900/30">
-                  {avatarSrc ? (
-                    <img src={avatarSrc} alt="avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    avatarInitial
-                  )}
-                </div>
-
-                {/* Camera button */}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={avatarLoading}
-                  className="absolute bottom-0 right-0 w-7 h-7 bg-primary-600 text-white rounded-full flex items-center justify-center hover:bg-primary-700 transition-colors shadow-lg disabled:opacity-60"
-                  title="Upload photo"
-                >
-                  {avatarLoading ? (
-                    <FaSpinner className="text-xs animate-spin" />
-                  ) : (
-                    <FaCamera className="text-xs" />
-                  )}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarSelect}
-                  className="hidden"
-                />
-              </div>
-
-              {avatarError && (
-                <p className="text-xs text-red-500 mb-2">{avatarError}</p>
-              )}
+              <CloudinaryAvatarUpload user={user} onUserUpdated={updateUser} />
 
               <h3 className="font-bold text-slate-900 dark:text-white">{user?.name}</h3>
               <p className="text-sm text-slate-500 dark:text-slate-400">{user?.email}</p>

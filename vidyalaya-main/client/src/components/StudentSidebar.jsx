@@ -16,7 +16,9 @@ import {
 const SIDEBAR_ITEMS = [
   { label: 'Dashboard',      icon: FaCompass,      path: '/dashboard',               color: 'text-primary-600 dark:text-primary-400', bg: 'bg-primary-50 dark:bg-primary-900/20' },
   { label: 'My Courses',     icon: FaBook,         path: '/my-courses',              color: 'text-primary-600 dark:text-primary-400', bg: 'bg-primary-50 dark:bg-primary-900/20' },
-  { label: 'Learning',       icon: FaPlay,         path: '/student/course/1/learn',  color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-50 dark:bg-orange-900/20'  },
+  // Do not hardcode a course id (e.g. "/student/course/1/learn").
+  // Students click Learning to auto-redirect to the first enrolled course.
+  { label: 'Learning',       icon: FaPlay,         path: '/student/learning',      color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-50 dark:bg-orange-900/20'  },
   { label: 'Assignments',    icon: FaClipboardList,path: '/student/assignments',     color: 'text-amber-600 dark:text-amber-400',   bg: 'bg-amber-50 dark:bg-amber-900/20'   },
   { label: 'Payment History',icon: FaReceipt,      path: '/student/payments',        color: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
   { label: 'My Profile',     icon: FaUser,         path: '/profile',                 color: 'text-green-600 dark:text-green-400',   bg: 'bg-green-50 dark:bg-green-900/20'   },
@@ -31,7 +33,7 @@ const StudentSidebar = () => {
 
   const isActive = (item) => {
     if (item.label === 'Learning') {
-      return location.pathname.startsWith('/student/course/');
+      return location.pathname === '/student/learning' || location.pathname.startsWith('/student/course/');
     }
     if (item.label === 'Assignments') {
       return location.pathname.startsWith('/student/assignments');

@@ -8,7 +8,7 @@ import {
   FaBook, FaUsers, FaStar, FaPlus, FaEdit, FaTrash,
   FaChartLine, FaCheckCircle, FaExclamationCircle,
   FaSpinner, FaGraduationCap, FaEye, FaToggleOn, FaToggleOff,
-  FaTimes, FaChalkboardTeacher, FaBriefcase,
+  FaTimes, FaChalkboardTeacher, FaBriefcase, FaUpload,
 } from 'react-icons/fa';
 import { useLocation } from 'react-router-dom';
 
@@ -224,6 +224,16 @@ const TeacherDashboard = () => {
     fetchEnrollments();
   }, []);
 
+  // Route-driven UX: when user clicks "Create Course" in the sidebar,
+  // automatically open the create modal.
+  useEffect(() => {
+    if (location.pathname === '/teacher/create-course') {
+      setEditingCourse(null);
+      setModalError('');
+      setShowModal(true);
+    }
+  }, [location.pathname]);
+
   const fetchCourses = async () => {
     setLoading(true);
     try {
@@ -261,10 +271,14 @@ const TeacherDashboard = () => {
     setModalLoading(true);
     setModalError('');
     try {
-      await courseAPI.createCourse(form);
+      const data = await courseAPI.createCourse(form);
       await fetchCourses();
       setShowModal(false);
-      showToast('Course created successfully! 🎉');
+      showToast('Course created successfully! Now upload thumbnail + videos.');
+
+      const newCourseId = data?.course?.id;
+      if (newCourseId) navigate(`/teacher/courses/${newCourseId}/assets`);
+      else navigate('/teacher/courses');
     } catch (err) {
       setModalError(err.response?.data?.message || 'Failed to create course');
     } finally {
@@ -331,7 +345,8 @@ const TeacherDashboard = () => {
     advanced: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   };
 
-  const isMyCourses = location.pathname === '/teacher/courses';
+  const isMyCourses =
+    location.pathname === '/teacher/courses' || location.pathname === '/teacher/create-course';
 
   return (
     <div className="h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
@@ -508,8 +523,14 @@ const TeacherDashboard = () => {
                       className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-700/40 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-amber-200 dark:hover:border-amber-800 transition-all"
                     >
                       {/* Color swatch */}
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${course.color || 'from-amber-500 to-orange-500'} flex items-center justify-center flex-shrink-0`}>
-                        <FaBook className="text-white text-sm" />
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-slate-100 dark:bg-slate-700">
+                        {course.image ? (
+                          <img src={course.image} alt={course.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full bg-gradient-to-br ${course.color || 'from-amber-500 to-orange-500'} flex items-center justify-center`}>
+                            <FaBook className="text-white text-sm" />
+                          </div>
+                        )}
                       </div>
 
                       {/* Info */}
@@ -531,6 +552,11 @@ const TeacherDashboard = () => {
                             <FaStar className="text-[10px] text-yellow-400" />{course.rating?.toFixed(1) || '0.0'} ({course.totalRatings || 0})
                           </span>
                           <span className="text-xs text-slate-400 capitalize">{course.category}</span>
+                          <span className="text-xs font-semibold text-slate-700 bg-slate-100 dark:bg-slate-900/40 px-2 py-0.5 rounded-full">
+                            {course.price && Number(course.price) > 0
+                              ? `Paid · NPR ${Number(course.price).toLocaleString()}`
+                              : 'Free'}
+                          </span>
                         </div>
                       </div>
 
@@ -542,6 +568,13 @@ const TeacherDashboard = () => {
                           className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                         >
                           <FaEye className="text-sm" />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/teacher/courses/${course.id}/assets`)}
+                          title="Upload thumbnail + videos"
+                          className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                        >
+                          <FaUpload className="text-sm" />
                         </button>
                         <button
                           onClick={() => handleTogglePublish(course)}
@@ -619,7 +652,10 @@ const TeacherDashboard = () => {
       {showModal && (
         <CourseModal
           initial={null}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            setShowModal(false);
+            if (location.pathname === '/teacher/create-course') navigate('/teacher/courses');
+          }}
           onSave={handleCreate}
           loading={modalLoading}
           error={modalError}
@@ -636,6 +672,8 @@ const TeacherDashboard = () => {
           error={modalError}
         />
       )}
+
+      {/* (Assets uploads moved to dedicated page) */}
     </div>
   );
 };

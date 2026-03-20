@@ -157,6 +157,37 @@ export const courseAPI = {
     return data;
   },
 
+  // Protected (teacher/admin): upload/replace course thumbnail (Cloudinary image)
+  uploadCourseThumbnail: async (courseId, file, { onUploadProgress } = {}) => {
+    const formData = new FormData();
+    formData.append('thumbnail', file);
+    const { data } = await api.post(`/courses/${courseId}/thumbnail`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
+    });
+    return data.course;
+  },
+
+  // Protected (teacher/admin): upload a single course video.
+  // Frontend can upload multiple files (1-2 mins each) with separate calls
+  // to show progress per file.
+  uploadCourseVideo: async (courseId, file, { title, onUploadProgress } = {}) => {
+    const formData = new FormData();
+    formData.append('video', file);
+    if (title) formData.append('title', title);
+    const { data } = await api.post(`/courses/${courseId}/videos`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
+    });
+    return { video: data.video, course: data.course };
+  },
+
+  // Protected (student): gated course learning content (videos only if access is granted)
+  getCourseLearning: async (courseId) => {
+    const { data } = await api.get(`/courses/${courseId}/learning`);
+    return data;
+  },
+
   // Protected (student): enroll in a course
   enrollCourse: async (id) => {
     const { data } = await api.post('/enrollments', { courseId: id });
