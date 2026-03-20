@@ -6,6 +6,9 @@ import { useState, useRef, useEffect } from 'react';
 // ── Auth ──────────────────────────────────────────────────────────────────────
 import { useAuth } from '../context/AuthContext';
 
+// ── API ───────────────────────────────────────────────────────────────────────
+import { chatAPI } from '../services/api';
+
 // ── Layout shell ──────────────────────────────────────────────────────────────
 import StudentShell from '../components/StudentShell';
 
@@ -17,7 +20,6 @@ import {
   FaRobot,
   FaUser,
   FaTrash,
-  FaSave,
   FaCode,
   FaTimes,
   FaBook,
@@ -114,6 +116,31 @@ const renderMessageContent = (content) => {
   return parts.length > 0 ? parts : <span className="whitespace-pre-wrap">{content}</span>;
 };
 
+const makeGreeting = (name) => ({
+  id: 1,
+  type: 'ai',
+  content: `Hello ${name || 'there'}! 👋 I'm your AI tutor powered by Google Gemini. I'm here to help you learn and understand any topic. You can ask me questions, upload images or files, and I'll provide detailed explanations. What would you like to learn today?`,
+  timestamp: new Date(),
+});
+
+const mapServerMessage = (msg, idx) => {
+  const files = (msg.files || []).map((f) => ({
+    // UI expects `type` + optional `url`.
+    type: f.kind === 'image' ? 'image' : 'file',
+    name: f.name,
+    size: f.size ? `${(f.size / 1024).toFixed(2)} KB` : '',
+    url: f.url, // may not exist for history messages
+  }));
+
+  return {
+    id: idx + 1,
+    type: msg.type,
+    content: msg.content,
+    timestamp: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+    files,
+  };
+};
+
 // =============================================================================
 // AITutorChat
 // =============================================================================
@@ -133,6 +160,7 @@ const AITutorChat = () => {
   const [isTyping,         setIsTyping]         = useState(false);
   const [uploadedFiles,    setUploadedFiles]    = useState([]);
   const [error,            setError]            = useState(null);
+  const [loadingHistory,  setLoadingHistory]  = useState(true);
 
   const messagesEndRef = useRef(null);
   const fileInputRef   = useRef(null);
@@ -143,21 +171,52 @@ const AITutorChat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Load chat history whenever the selected subject changes.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      setLoadingHistory(true);
+      setIsTyping(false);
+      setError(null);
+
+      // Clear any staged attachments/message when switching subjects.
+      setInputMessage('');
+      setUploadedFiles([]);
+
+      try {
+        const data = await chatAPI.getHistory({ subject: selectedSubject, limit: 50 });
+        if (cancelled) return;
+
+        const serverMessages = data?.messages || [];
+        if (!serverMessages.length) {
+          setMessages([makeGreeting(user?.name)]);
+        } else {
+          setMessages(serverMessages.map(mapServerMessage));
+        }
+      } catch {
+        if (cancelled) return;
+        setError('Failed to load chat history. Starting a fresh chat.');
+        setMessages([makeGreeting(user?.name)]);
+      } finally {
+        if (!cancelled) setLoadingHistory(false);
+      }
+    };
+
+    loadHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSubject, user?.name]);
+
   // ── API call (logic unchanged) ──────────────────────────────────────────────
   const callGeminiAPI = async (userMessage, files = []) => {
-    const formData = new FormData();
-    formData.append('message', userMessage);
-    formData.append('subject', selectedSubject);
-    files.forEach((file) => formData.append('files', file.originalFile));
-
-    const response = await fetch('http://localhost:5000/api/chat/gemini', {
-      method:  'POST',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body:    formData,
+    const originalFiles = files.map((f) => f.originalFile).filter(Boolean);
+    const data = await chatAPI.sendGemini({
+      message: userMessage,
+      subject: selectedSubject,
+      files: originalFiles,
     });
-
-    if (!response.ok) throw new Error('Failed to get AI response');
-    const data = await response.json();
     return data.response;
   };
 
@@ -228,38 +287,21 @@ const AITutorChat = () => {
   const removeFile = (index) =>
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
 
-  // ── Clear / save ────────────────────────────────────────────────────────────
-  const clearChat = () => {
-    if (!window.confirm('Are you sure you want to clear the chat history?')) return;
-    setMessages([
-      {
-        id:        1,
-        type:      'ai',
-        content:   `Chat cleared! How can I help you today, ${user?.name}?`,
-        timestamp: new Date(),
-      },
-    ]);
-  };
+  // ── Clear ────────────────────────────────────────────────────────────────
+  const clearChat = async () => {
+    if (!window.confirm('Are you sure you want to clear this chat history?')) return;
 
-  const saveChatHistory = () => {
-    const chatData = {
-      user:    user?.name,
-      subject: selectedSubject,
-      messages: messages.map((msg) => ({
-        ...msg,
-        files: msg.files ? msg.files.map((f) => ({ name: f.name, type: f.type })) : null,
-      })),
-      savedAt: new Date().toISOString(),
-    };
-    const blob   = new Blob([JSON.stringify(chatData, null, 2)], { type: 'application/json' });
-    const url    = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href  = url;
-    anchor.download = `ai-tutor-chat-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
+    setLoadingHistory(true);
+    setError(null);
+
+    try {
+      await chatAPI.clearHistory({ subject: selectedSubject });
+      setMessages([makeGreeting(user?.name)]);
+    } catch {
+      setError('Failed to clear chat history.');
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -284,16 +326,8 @@ const AITutorChat = () => {
               </div>
             </div>
 
-            {/* Save & clear actions */}
+            {/* Clear action */}
             <div className="flex space-x-2">
-              <button
-                onClick={saveChatHistory}
-                aria-label="Save chat history"
-                title="Save Chat History"
-                className="p-2.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors focus:outline-none focus:ring-2 focus:ring-green-400"
-              >
-                <FaSave />
-              </button>
               <button
                 onClick={clearChat}
                 aria-label="Clear chat"
@@ -308,22 +342,26 @@ const AITutorChat = () => {
           {/* ── Subject selector ─────────────────────────────────────────── */}
           <div className="px-6 py-3 border-b border-slate-200 bg-slate-50 flex-shrink-0 overflow-x-auto">
             <div className="flex gap-2 w-max">
-              {SUBJECTS.map(({ id, name, icon: Icon, activeClass }) => (
-                <button
-                  key={id}
-                  onClick={() => setSelectedSubject(id)}
-                  aria-pressed={selectedSubject === id}
-                  className={[
-                    'flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400',
-                    selectedSubject === id
-                      ? `${activeClass} text-white shadow scale-105`
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200',
-                  ].join(' ')}
-                >
-                  <Icon className="text-xs" />
-                  <span>{name}</span>
-                </button>
-              ))}
+              {SUBJECTS.map((s) => {
+                const { id, name, activeClass, icon } = s;
+                const Icon = icon;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setSelectedSubject(id)}
+                    aria-pressed={selectedSubject === id}
+                    className={[
+                      'flex items-center space-x-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400',
+                      selectedSubject === id
+                        ? `${activeClass} text-white shadow scale-105`
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200',
+                    ].join(' ')}
+                  >
+                    <Icon className="text-xs" />
+                    <span>{name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -341,11 +379,16 @@ const AITutorChat = () => {
               </div>
             )}
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+            {loadingHistory ? (
+              <div className="flex items-center justify-center py-10 text-slate-500">
+                <div className="w-7 h-7 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+              </div>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
                 <div
                   className={`flex items-start space-x-3 max-w-[80%] ${
                     message.type === 'user' ? 'flex-row-reverse space-x-reverse' : ''
@@ -387,7 +430,18 @@ const AITutorChat = () => {
                               {file.type === 'image' ? (
                                 <>
                                   <FaImage className="text-xs flex-shrink-0" />
-                                  <img src={file.url} alt={file.name} className="h-20 rounded object-cover" />
+                                  {file.url ? (
+                                    <img
+                                      src={file.url}
+                                      alt={file.name}
+                                      className="h-20 rounded object-cover"
+                                    />
+                                  ) : (
+                                    <div>
+                                      <p className="text-xs font-medium">{file.name}</p>
+                                      <p className="text-xs opacity-70">{file.size}</p>
+                                    </div>
+                                  )}
                                 </>
                               ) : (
                                 <>
@@ -410,8 +464,9 @@ const AITutorChat = () => {
                     </p>
                   </div>
                 </div>
-              </div>
-            ))}
+                </div>
+              ))
+            )}
 
             {/* Typing indicator — three bouncing dots with staggered delay */}
             {isTyping && (
@@ -526,7 +581,9 @@ const AITutorChat = () => {
               {/* Send button */}
               <button
                 onClick={handleSendMessage}
-                disabled={!inputMessage.trim() && uploadedFiles.length === 0}
+                disabled={
+                  loadingHistory || isTyping || (!inputMessage.trim() && uploadedFiles.length === 0)
+                }
                 aria-label="Send message"
                 className="p-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 flex-shrink-0"
               >

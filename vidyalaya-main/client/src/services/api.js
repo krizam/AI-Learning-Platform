@@ -287,4 +287,37 @@ export const paymentAPI = {
   },
 };
 
+// ── Chat API (Gemini tutor) ───────────────────────────────────────────────────
+export const chatAPI = {
+  // POST /api/chat/gemini (multipart)
+  sendGemini: async ({ message, subject = 'general', files = [] }) => {
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('subject', subject);
+    files.forEach((file) => formData.append('files', file));
+
+    const { data } = await api.post('/chat/gemini', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return data;
+  },
+
+  // GET /api/chat/history?subject=general&limit=50
+  getHistory: async ({ subject = 'general', limit = 50 } = {}) => {
+    const { data } = await api.get('/chat/history', {
+      params: { subject, limit },
+    });
+    return data;
+  },
+
+  // DELETE /api/chat/history?subject=general
+  clearHistory: async ({ subject = 'general' } = {}) => {
+    const { data } = await api.delete('/chat/history', {
+      params: { subject },
+    });
+    return data;
+  },
+};
+
 export default api;
