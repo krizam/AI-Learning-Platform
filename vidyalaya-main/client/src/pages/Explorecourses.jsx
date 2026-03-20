@@ -262,8 +262,7 @@ const ExploreCourses = () => {
                         onClick={() => handleCourseClick(course.id)}
                         className="w-full bg-gradient-to-r from-primary-600 to-primary-500 text-white py-2.5 px-4 rounded-lg font-semibold hover:from-primary-700 hover:to-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg text-sm flex items-center justify-center gap-2"
                       >
-                        <FaLock className="text-xs" />
-                        View Details (Login to Enroll)
+                        View Course
                       </button>
                     </div>
                   </div>
@@ -469,7 +468,8 @@ const ExploreCourses = () => {
                           onClick={() => handleCourseClick(course.id)}
                           className="w-full bg-gradient-to-r from-primary-600 to-primary-500 text-white py-2.5 px-4 rounded-lg font-semibold hover:from-primary-700 hover:to-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg text-sm flex items-center justify-center gap-2"
                         >
-                          View Course
+                          <FaLock className="text-xs" />
+                          View Details (Login to Enroll)
                         </button>
                       </div>
                     </div>

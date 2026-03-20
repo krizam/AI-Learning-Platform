@@ -331,7 +331,7 @@ const StudentDashboard = () => {
                       <div className="text-right flex-shrink-0">
                         <p className="text-xs font-bold text-slate-700 mb-2">{MOCK_PROGRESS[i] ?? 50}%</p>
                         <button
-                          onClick={() => navigate(`/course/${course.id}`)}
+                          onClick={() => navigate(`/student/course/${course.id}/learn`)}
                           aria-label={`Continue ${course.title}`}
                           className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
                         >
