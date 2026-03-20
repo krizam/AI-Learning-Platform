@@ -1,11 +1,14 @@
 // Assignments.jsx
 
 // ── React & auth ──────────────────────────────────────────────────────────────
-import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useEffect, useState } from 'react';
+// (no direct auth usage needed here; StudentShell handles protected layout)
 
 // ── Layout shell ──────────────────────────────────────────────────────────────
 import StudentShell from '../components/StudentShell';
+
+// ── API ───────────────────────────────────────────────────────────────────────
+import { assignmentAPI } from '../services/api';
 
 // ── Icons (react-icons/fa only) ───────────────────────────────────────────────
 import {
@@ -26,97 +29,8 @@ import {
 } from 'react-icons/fa';
 
 // =============================================================================
-// Demo data
-// Replace with a real API call when the backend endpoint is ready.
+// Assignments data is loaded from the backend API.
 // =============================================================================
-const DEMO_ASSIGNMENTS = [
-  {
-    id: 1,
-    title: 'HTML & CSS Fundamentals Quiz',
-    course: 'Web Development Bootcamp',
-    type: 'quiz',
-    dueDate: '2024-03-20',
-    duration: '30 minutes',
-    status: 'pending',
-    points: 100,
-    totalQuestions: 5,
-    description: 'Test your knowledge of HTML tags, CSS selectors, and responsive design principles.',
-    questions: [
-      { id: 1, question: 'What does HTML stand for?',                        options: ['Hyper Text Markup Language','High Tech Modern Language','Home Tool Markup Language','Hyperlinks and Text Markup Language'], correctAnswer: 0 },
-      { id: 2, question: 'Which CSS property is used to change text color?', options: ['text-color','color','font-color','text-style'],                                                                             correctAnswer: 1 },
-      { id: 3, question: 'What is the correct HTML element for a line break?',options: ['<break>','<lb>','<br>','<line>'],                                                                                          correctAnswer: 2 },
-      { id: 4, question: 'Which property changes the background color?',     options: ['bgcolor','background-color','color-background','bg-color'],                                                                 correctAnswer: 1 },
-      { id: 5, question: 'How do you make text bold in CSS?',                options: ['font-weight: bold;','text-style: bold;','font: bold;','text-weight: bold;'],                                                correctAnswer: 0 },
-    ],
-  },
-  {
-    id: 2,
-    title: 'React Components Project',
-    course: 'React Fundamentals',
-    type: 'project',
-    dueDate: '2024-03-25',
-    duration: 'No time limit',
-    status: 'pending',
-    points: 200,
-    description: 'Build a todo list application using React hooks and component composition.',
-    requirements: [
-      'Use functional components with hooks',
-      'Implement state management',
-      'Add styling with CSS or Tailwind',
-      'Include proper error handling',
-    ],
-  },
-  {
-    id: 3,
-    title: 'JavaScript Arrays & Objects Quiz',
-    course: 'JavaScript Essentials',
-    type: 'quiz',
-    dueDate: '2024-03-18',
-    duration: '20 minutes',
-    totalQuestions: 8,
-    status: 'overdue',
-    points: 80,
-    description: 'Assessment covering array methods, object manipulation, and destructuring.',
-  },
-  {
-    id: 4,
-    title: 'CSS Flexbox Layout',
-    course: 'Web Development Bootcamp',
-    type: 'project',
-    dueDate: '2024-03-15',
-    status: 'completed',
-    submittedDate: '2024-03-14',
-    points: 150,
-    grade: null,
-    description: 'Create a responsive navigation bar using CSS Flexbox.',
-  },
-  {
-    id: 5,
-    title: 'Git & GitHub Basics Quiz',
-    course: 'Version Control',
-    type: 'quiz',
-    dueDate: '2024-03-10',
-    status: 'graded',
-    submittedDate: '2024-03-09',
-    points: 100,
-    grade: 85,
-    feedback: 'Good understanding of basic concepts. Review merge conflicts section.',
-    description: 'Test your knowledge of Git commands and GitHub workflows.',
-  },
-  {
-    id: 6,
-    title: 'Database Design Project',
-    course: 'Backend Development',
-    type: 'project',
-    dueDate: '2024-03-12',
-    status: 'graded',
-    submittedDate: '2024-03-11',
-    points: 200,
-    grade: 190,
-    feedback: 'Excellent work! Well-structured schema and proper normalization.',
-    description: 'Design a database schema for an e-commerce application.',
-  },
-];
 
 // Tab definitions for the list view
 const TABS = [
@@ -153,7 +67,10 @@ const StatusBadge = ({ status }) => {
 // Assignments
 // =============================================================================
 const Assignments = () => {
-  const { user } = useAuth();
+  // Loading + list state
+  const [assignments, setAssignments] = useState([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [assignmentsError, setAssignmentsError] = useState('');
 
   const [activeTab,           setActiveTab]           = useState('pending');
   const [selectedAssignment,  setSelectedAssignment]  = useState(null);
@@ -164,8 +81,26 @@ const Assignments = () => {
   const [quizScore,           setQuizScore]           = useState(0);
   const [uploadedFile,        setUploadedFile]        = useState(null);
 
+  const refreshAssignments = async () => {
+    setLoadingAssignments(true);
+    setAssignmentsError('');
+    try {
+      const data = await assignmentAPI.getMyAssignments();
+      setAssignments(data?.assignments || []);
+    } catch (err) {
+      setAssignmentsError(err?.response?.data?.message || err.message || 'Failed to load assignments');
+      setAssignments([]);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshAssignments();
+  }, []);
+
   // ── Derived values ──────────────────────────────────────────────────────────
-  const filteredAssignments = DEMO_ASSIGNMENTS.filter((a) => {
+  const filteredAssignments = assignments.filter((a) => {
     if (activeTab === 'pending')   return a.status === 'pending' || a.status === 'overdue';
     if (activeTab === 'completed') return a.status === 'completed';
     if (activeTab === 'graded')    return a.status === 'graded';
@@ -173,12 +108,12 @@ const Assignments = () => {
   });
 
   const stats = {
-    pending:      DEMO_ASSIGNMENTS.filter((a) => a.status === 'pending').length,
-    overdue:      DEMO_ASSIGNMENTS.filter((a) => a.status === 'overdue').length,
-    completed:    DEMO_ASSIGNMENTS.filter((a) => a.status === 'completed').length,
-    graded:       DEMO_ASSIGNMENTS.filter((a) => a.status === 'graded').length,
+    pending:      assignments.filter((a) => a.status === 'pending').length,
+    overdue:      assignments.filter((a) => a.status === 'overdue').length,
+    completed:    assignments.filter((a) => a.status === 'completed').length,
+    graded:       assignments.filter((a) => a.status === 'graded').length,
     averageGrade: (() => {
-      const graded = DEMO_ASSIGNMENTS.filter((a) => a.grade != null);
+      const graded = assignments.filter((a) => a.grade != null);
       if (!graded.length) return 0;
       return graded.reduce((sum, a) => sum + (a.grade / a.points) * 100, 0) / graded.length;
     })(),
@@ -194,16 +129,38 @@ const Assignments = () => {
     setQuizScore(0);
   };
 
-  const handleAnswerSelect = (questionId, answerIndex) =>
-    setQuizAnswers((prev) => ({ ...prev, [questionId]: answerIndex }));
+  const handleAnswerSelect = (questionKey, answerIndex) => {
+    setQuizAnswers((prev) => ({ ...prev, [questionKey]: answerIndex }));
+  };
 
-  const submitQuiz = () => {
-    let correct = 0;
-    selectedAssignment.questions.forEach((q) => {
-      if (quizAnswers[q.id] === q.correctAnswer) correct++;
+  const submitQuiz = async () => {
+    if (!selectedAssignment?.id) return;
+    const answers = (selectedAssignment.questions || []).map((q, idx) => {
+      const key = String(q.id ?? q._id ?? idx);
+      return { questionId: key, selectedIndex: quizAnswers[key] };
     });
-    setQuizScore(correct);
-    setQuizSubmitted(true);
+
+    try {
+      const resp = await assignmentAPI.submitQuiz(selectedAssignment.id, answers);
+      const submission = resp?.submission;
+      const correctCount = resp?.correctCount;
+      const grade = resp?.grade ?? submission?.score ?? null;
+      const feedback = submission?.feedback ?? null;
+
+      if (submission?.status === 'graded') {
+        setSelectedAssignment((prev) => ({
+          ...prev,
+          status: 'graded',
+          grade,
+          feedback,
+        }));
+      }
+
+      setQuizScore(correctCount ?? 0);
+      setQuizSubmitted(true);
+    } catch (err) {
+      setAssignmentsError(err?.response?.data?.message || err.message || 'Quiz submission failed');
+    }
   };
 
   // ── File / project handlers ─────────────────────────────────────────────────
@@ -212,10 +169,17 @@ const Assignments = () => {
     if (file) setUploadedFile(file);
   };
 
-  const submitAssignment = () => {
-    // Placeholder — replace with real API call
+  const submitAssignment = async () => {
+    if (!selectedAssignment?.id || !uploadedFile) return;
+    try {
+      await assignmentAPI.submitProject(selectedAssignment.id, uploadedFile);
+    } catch (err) {
+      setAssignmentsError(err?.response?.data?.message || err.message || 'Submission failed');
+      return;
+    }
     setSelectedAssignment(null);
     setUploadedFile(null);
+    await refreshAssignments();
   };
 
   // ── Quiz view ───────────────────────────────────────────────────────────────
@@ -244,7 +208,14 @@ const Assignments = () => {
                 {quizScore} out of {totalQ} correct
               </p>
               <button
-                onClick={() => { setQuizMode(false); setSelectedAssignment(null); }}
+                onClick={async () => {
+                  setQuizMode(false);
+                  setSelectedAssignment(null);
+                  setQuizSubmitted(false);
+                  setQuizScore(0);
+                  setQuizAnswers({});
+                  await refreshAssignments();
+                }}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 Back to Assignments
@@ -257,6 +228,7 @@ const Assignments = () => {
 
     // Active quiz question
     const currentQ = selectedAssignment.questions[currentQuestion];
+    const currentQKey = String(currentQ?.id ?? currentQ?._id ?? currentQuestion);
     const progress = ((currentQuestion + 1) / totalQ) * 100;
 
     return (
@@ -299,11 +271,11 @@ const Assignments = () => {
               <h3 className="text-lg font-bold text-slate-900 mb-6">{currentQ.question}</h3>
               <div className="space-y-3">
                 {currentQ.options.map((option, index) => {
-                  const selected = quizAnswers[currentQ.id] === index;
+                  const selected = quizAnswers[currentQKey] === index;
                   return (
                     <button
                       key={index}
-                      onClick={() => handleAnswerSelect(currentQ.id, index)}
+                      onClick={() => handleAnswerSelect(currentQKey, index)}
                       className={[
                         'w-full p-4 text-left rounded-xl border-2 transition-all focus:outline-none',
                         selected
@@ -406,7 +378,8 @@ const Assignments = () => {
               </div>
 
               {/* Start quiz CTA */}
-              {selectedAssignment.type === 'quiz' && selectedAssignment.status === 'pending' && (
+              {selectedAssignment.type === 'quiz' &&
+                (selectedAssignment.status === 'pending' || selectedAssignment.status === 'overdue') && (
                 <button
                   onClick={() => startQuiz(selectedAssignment)}
                   className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-bold transition-all shadow flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -416,7 +389,8 @@ const Assignments = () => {
               )}
 
               {/* Project submission */}
-              {selectedAssignment.type === 'project' && selectedAssignment.status === 'pending' && (
+              {selectedAssignment.type === 'project' &&
+                (selectedAssignment.status === 'pending' || selectedAssignment.status === 'overdue') && (
                 <div className="space-y-5">
                   {selectedAssignment.requirements && (
                     <div>
@@ -514,24 +488,39 @@ const Assignments = () => {
           <p className="text-slate-500 text-sm mt-1">Complete your assignments and track your progress</p>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          {[
-            { label: 'Pending',   value: stats.pending,                   icon: FaClock,              color: 'text-blue-500'   },
-            { label: 'Overdue',   value: stats.overdue,                   icon: FaExclamationTriangle, color: 'text-red-500'    },
-            { label: 'Submitted', value: stats.completed,                 icon: FaCheckCircle,         color: 'text-yellow-500' },
-            { label: 'Graded',    value: stats.graded,                    icon: FaTrophy,              color: 'text-green-500'  },
-            { label: 'Avg Grade', value: `${stats.averageGrade.toFixed(0)}%`, icon: FaStar,           color: 'text-blue-500'   },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-slate-500">{label}</p>
-                <Icon className={`text-sm ${color}`} />
+        {assignmentsError && (
+          <div
+            role="alert"
+            className="mb-6 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-xl"
+          >
+            {assignmentsError}
+          </div>
+        )}
+
+        {loadingAssignments ? (
+          <div className="flex items-center justify-center mb-8 py-10">
+            <div className="w-10 h-10 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+          </div>
+        ) : (
+          /* Stats row */
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            {[
+              { label: 'Pending',   value: stats.pending,                   icon: FaClock,              color: 'text-blue-500'   },
+              { label: 'Overdue',   value: stats.overdue,                   icon: FaExclamationTriangle, color: 'text-red-500'    },
+              { label: 'Submitted', value: stats.completed,                 icon: FaCheckCircle,         color: 'text-yellow-500' },
+              { label: 'Graded',    value: stats.graded,                    icon: FaTrophy,              color: 'text-green-500'  },
+              { label: 'Avg Grade', value: `${stats.averageGrade.toFixed(0)}%`, icon: FaStar,           color: 'text-blue-500'   },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-slate-500">{label}</p>
+                  <Icon className={`text-sm ${color}`} />
+                </div>
+                <p className="text-2xl font-bold text-slate-900">{value}</p>
               </div>
-              <p className="text-2xl font-bold text-slate-900">{value}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Tab switcher */}
         <div className="flex gap-2 mb-6">
@@ -554,7 +543,11 @@ const Assignments = () => {
 
         {/* Assignment list */}
         <div className="space-y-3">
-          {filteredAssignments.length === 0 ? (
+          {loadingAssignments ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="w-8 h-8 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin" />
+            </div>
+          ) : filteredAssignments.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-slate-200">
               <FaClipboardList className="text-5xl text-slate-200 mx-auto mb-4" />
               <p className="text-slate-500 text-sm">No assignments in this category</p>

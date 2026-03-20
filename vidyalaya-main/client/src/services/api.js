@@ -287,6 +287,60 @@ export const paymentAPI = {
   },
 };
 
+// ── Assignments API ──────────────────────────────────────────────────────────
+export const assignmentAPI = {
+  // Student: list my assignments
+  getMyAssignments: async () => {
+    const { data } = await api.get('/assignments');
+    return data;
+  },
+
+  // Teacher: list assignments they created
+  getTeacherAssignments: async () => {
+    const { data } = await api.get('/assignments/teacher');
+    return data;
+  },
+
+  // Teacher: create assignment
+  createAssignment: async (payload) => {
+    const { data } = await api.post('/assignments', payload);
+    return data;
+  },
+
+  // Student: submit quiz answers
+  submitQuiz: async (assignmentId, answers) => {
+    const { data } = await api.post(`/assignments/${assignmentId}/submissions/quiz`, { answers });
+    return data;
+  },
+
+  // Student: submit project file
+  submitProject: async (assignmentId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post(
+      `/assignments/${assignmentId}/submissions/project`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return data;
+  },
+
+  // Teacher: view submissions for an assignment
+  getSubmissions: async (assignmentId) => {
+    const { data } = await api.get(`/assignments/${assignmentId}/submissions`);
+    return data;
+  },
+
+  // Teacher: grade a submission
+  gradeSubmission: async (assignmentId, submissionId, payload) => {
+    const { data } = await api.post(
+      `/assignments/${assignmentId}/submissions/${submissionId}/grade`,
+      payload
+    );
+    return data;
+  },
+};
+
 // ── Chat API (Gemini tutor) ───────────────────────────────────────────────────
 export const chatAPI = {
   // POST /api/chat/gemini (multipart)

@@ -40,6 +40,7 @@ import StudentPaymentHistory from './pages/StudentPaymentHistory';
 import TeacherDashboard from './pages/TeacherDashboard';
 import TeacherCourseAssetsUpload from './pages/TeacherCourseAssetsUpload';
 import TeacherPaymentHistory from './pages/TeacherPaymentHistory';
+import TeacherAssignments from './pages/TeacherAssignments';
 
 // ── Admin pages ───────────────────────────────────────────────────────────────
 import AdminDashboard from './pages/AdminDashboard';
@@ -129,6 +130,7 @@ function App() {
             element={<TeacherRoute><TeacherCourseAssetsUpload /></TeacherRoute>}
           />
           <Route path="/teacher/payments" element={<TeacherRoute><TeacherPaymentHistory /></TeacherRoute>} />
+          <Route path="/teacher/assignments" element={<TeacherRoute><TeacherAssignments /></TeacherRoute>} />
 
           {/* Admin-only routes */}
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

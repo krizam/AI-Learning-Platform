@@ -34,7 +34,7 @@ import {
   FaMoneyBillWave,   // NEW — for Pay Now button and price display
 } from 'react-icons/fa';
 
-// ─── Mock curriculum (unchanged) ─────────────────────────────────────────────
+// ─── Fallback curriculum (used only when backend curriculum is empty) ────────
 const MOCK_CURRICULUM = [
   {
     section: 'Getting Started',
@@ -120,6 +120,9 @@ const CourseDetail = () => {
   const [userRating, setUserRating] = useState(0);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [openSection, setOpenSection] = useState(0);
+
+  const curriculum =
+    course?.curriculum && course.curriculum.length > 0 ? course.curriculum : MOCK_CURRICULUM;
 
   // Guard: redirect if ID is not a valid MongoDB ObjectId
   useEffect(() => {
@@ -378,10 +381,10 @@ const CourseDetail = () => {
                 <FaPlayCircle className="text-primary-500" /><span>Course Curriculum</span>
               </h3>
               <p className="text-slate-500 dark:text-slate-400 text-sm mb-5">
-                {MOCK_CURRICULUM.reduce((acc, s) => acc + s.lessons.length, 0)} lessons • {course?.duration}
+                {curriculum.reduce((acc, s) => acc + s.lessons.length, 0)} lessons • {course?.duration}
               </p>
               <div className="space-y-3">
-                {MOCK_CURRICULUM.map((section, si) => (
+                {curriculum.map((section, si) => (
                   <div key={si} className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
                     <button
                       onClick={() => setOpenSection(openSection === si ? -1 : si)}
@@ -522,7 +525,7 @@ const CourseDetail = () => {
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-2 text-slate-600 dark:text-slate-400"><FaBook /><span>Lessons</span></div>
                   <span className="font-semibold text-slate-900 dark:text-white">
-                    {MOCK_CURRICULUM.reduce((acc, s) => acc + s.lessons.length, 0)}
+                    {curriculum.reduce((acc, s) => acc + s.lessons.length, 0)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">

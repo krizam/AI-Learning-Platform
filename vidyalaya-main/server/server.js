@@ -8,6 +8,7 @@ import courseRoutes from './routes/courses.js';
 import enrollmentRoutes from './routes/enrollments.js';
 import chatRoutes from './routes/chatRoutes.js';
 import paymentRoutes from './routes/payment.route.js';
+import assignmentsRoutes from './routes/assignments.route.js';
 
 connectDB();
 
@@ -26,6 +27,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api/enrollments', enrollmentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/assignments', assignmentsRoutes);
 
 app.use(errorHandler);
 

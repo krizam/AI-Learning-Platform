@@ -71,6 +71,7 @@ const formatCourse = (course, userId) => ({
   isEnrolled: userId
     ? course.students.some((id) => id.toString() === userId.toString())
     : false,
+  curriculum: course.curriculum || [],
   createdAt: course.createdAt,
 });
 
@@ -553,6 +554,24 @@ router.post(
 
     course.videos = course.videos || [];
     course.videos.push({ title, url, public_id });
+
+    // Keep curriculum roughly aligned with uploaded videos:
+    // MVP approach: append each uploaded video as a lesson under the first section.
+    // Teachers can later customize `course.curriculum` if we add a UI for it.
+    course.curriculum = course.curriculum || [];
+    if (!course.curriculum.length) {
+      course.curriculum = [
+        {
+          section: 'Lessons',
+          lessons: [{ title, duration: '', free: false }],
+        },
+      ];
+    } else {
+      const targetSection = course.curriculum[0];
+      targetSection.lessons = targetSection.lessons || [];
+      targetSection.lessons.push({ title, duration: '', free: false });
+    }
+
     await course.save();
 
     return res.json({

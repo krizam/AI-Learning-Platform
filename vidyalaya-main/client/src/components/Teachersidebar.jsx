@@ -13,6 +13,7 @@ import {
   FaTimes,
   FaReceipt,
   FaPlus,
+  FaClipboardList,
 } from 'react-icons/fa';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,6 +45,12 @@ const SIDEBAR_ITEMS = [
     icon:  FaReceipt,
     path:  '/teacher/payments',
     accent: { text: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-500' },
+  },
+  {
+    label: 'Assignments',
+    icon:  FaClipboardList,
+    path:  '/teacher/assignments',
+    accent: { text: 'text-sky-700', bg: 'bg-sky-50', border: 'border-sky-500' },
   },
   {
     label: 'My Profile',
