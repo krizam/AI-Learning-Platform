@@ -33,4 +33,3 @@ export const uploadToCloudinary = async ({
     public_id: result.public_id,
   };
 };
-

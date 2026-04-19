@@ -11,6 +11,8 @@ import PDFDocument from 'pdfkit';
 import Payment from '../models/payment.model.js';
 import Enrollment from '../models/enrollmentModel.js';
 import Course from '../models/courseModel.js';
+import Notification from '../models/notification.model.js';
+import { emitNotification } from '../socket.js';
 
 // ── Shared Khalti header ──────────────────────────────────────────────────────
 const khaltiHeaders = () => ({
@@ -64,18 +66,15 @@ export const initiatePayment = async (req, res) => {
       return res.status(400).json({ message: 'This course does not require payment.' });
     }
 
-    // ── 2. Guard: if a pending Payment already exists, reuse it ─────────────
-    // Prevents creating a second Khalti session if the student clicks twice.
-    const existingPending = await Payment.findOne({ enrollment: enrollmentId, status: 'pending' });
-    if (existingPending) {
-      // We can't reconstruct the exact payment_url from pidx alone (Khalti doesn't
-      // expose a URL-by-pidx endpoint), so tell the frontend to retry from scratch.
-      // In practice this only happens if the browser crashed mid-checkout.
-      return res.status(200).json({
-        message: 'A payment session is already open. Please complete it or wait for it to expire.',
-        data: { pidx: existingPending.pidx },
-      });
-    }
+    // ── 2. Guard: Handle existing pending payments ─────────────
+    // If a student abandons a previous checkout, allow them to try again.
+    // We mark previous pending payments for this enrollment as 'expired'
+    // so we don't block the student from paying again. Even if they complete an
+    // "expired" one, the verify endpoint will still mark it completed correctly by pidx.
+    await Payment.updateMany(
+      { enrollment: enrollmentId, status: 'pending' },
+      { $set: { status: 'expired' } }
+    );
 
     // ── 3. Call Khalti to create a payment session ───────────────────────────
     const khaltiPayload = {
@@ -189,6 +188,26 @@ export const verifyPayment = async (req, res) => {
             course.students.push(enrollment.student);
             course.enrollmentCount = course.students.length;
             await course.save();
+          }
+
+          // Notify Student
+          const studentNotif = await Notification.create({
+            userId: enrollment.student,
+            message: `Payment successful! You are now enrolled in ${course.title}.`,
+            type: 'enrolled',
+            courseId: course._id
+          });
+          emitNotification(enrollment.student, studentNotif);
+
+          // Notify Teacher
+          if (course.createdBy) {
+            const teacherNotif = await Notification.create({
+              userId: course.createdBy,
+              message: `A student successfully paid and enrolled in your course ${course.title}.`,
+              type: 'enrolled',
+              courseId: course._id
+            });
+            emitNotification(course.createdBy, teacherNotif);
           }
         }
       }

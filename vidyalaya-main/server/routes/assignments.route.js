@@ -8,6 +8,7 @@ import {
   submitQuiz,
   submitProject,
   getAssignmentSubmissions,
+  downloadSubmissionFile,
   gradeSubmission,
 } from '../controllers/assignments.controller.js';
 
@@ -47,5 +48,11 @@ router.post(
   gradeSubmission
 );
 
-export default router;
+// Proxy download
+router.get(
+  '/submissions/:submissionId/download',
+  protect,
+  downloadSubmissionFile
+);
 
+export default router;

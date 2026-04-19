@@ -49,6 +49,11 @@ export const authAPI = {
     return data;
   },
 
+  verifyResetOtp: async (email, otp) => {
+    const { data } = await api.post('/auth/verify-reset-otp', { email, otp });
+    return data;
+  },
+
   resetPasswordWithOtp: async (email, otp, newPassword) => {
     const { data } = await api.post('/auth/reset-password', {
       email,
@@ -64,6 +69,11 @@ export const authAPI = {
     return data.user;
   },
 
+  updateTheme: async (themePreference) => {
+    const { data } = await api.put('/auth/theme', { themePreference });
+    return data;
+  },
+
   changePassword: async (currentPassword, newPassword) => {
     const { data } = await api.put('/auth/change-password', { currentPassword, newPassword });
     return data;
@@ -73,9 +83,7 @@ export const authAPI = {
   uploadAvatar: async (file) => {
     const formData = new FormData();
     formData.append('avatar', file);
-    const { data } = await api.post('/auth/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const { data } = await api.post('/auth/avatar', formData);
     return data.user;
   },
 };
@@ -162,7 +170,6 @@ export const courseAPI = {
     const formData = new FormData();
     formData.append('thumbnail', file);
     const { data } = await api.post(`/courses/${courseId}/thumbnail`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress,
     });
     return data.course;
@@ -176,7 +183,6 @@ export const courseAPI = {
     formData.append('video', file);
     if (title) formData.append('title', title);
     const { data } = await api.post(`/courses/${courseId}/videos`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress,
     });
     return { video: data.video, course: data.course };
@@ -319,8 +325,7 @@ export const assignmentAPI = {
     formData.append('file', file);
     const { data } = await api.post(
       `/assignments/${assignmentId}/submissions/project`,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
+      formData
     );
     return data;
   },
@@ -350,9 +355,7 @@ export const chatAPI = {
     formData.append('subject', subject);
     files.forEach((file) => formData.append('files', file));
 
-    const { data } = await api.post('/chat/gemini', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const { data } = await api.post('/chat/gemini', formData);
 
     return data;
   },
@@ -374,4 +377,41 @@ export const chatAPI = {
   },
 };
 
+// ── Progress API ─────────────────────────────────────────────────────────────
+export const progressAPI = {
+  getAllProgress: async () => {
+    const { data } = await api.get('/progress');
+    // Backend returns {success: true, progresses: [...]}
+    return data.progresses; 
+  },
+  getCourseProgress: async (courseId) => {
+    const { data } = await api.get(`/progress/${courseId}`);
+    return data.progress;
+  },
+  markLessonComplete: async (courseId, lessonTitle) => {
+    const { data } = await api.post(`/progress/${courseId}/mark-complete`, { lessonTitle });
+    return data.progress;
+  },
+  addWatchTime: async (courseId, timeSpentSeconds) => {
+    const { data } = await api.post(`/progress/${courseId}/time`, { timeSpent: timeSpentSeconds });
+    return data.progress;
+  }
+};
+
 export default api;
+
+// ── Notification API ─────────────────────────────────────────────────────────
+export const notificationAPI = {
+  getAll: async () => {
+    const { data } = await api.get('/notifications');
+    return data.notifications;
+  },
+  markAsRead: async (id) => {
+    const { data } = await api.put(`/notifications/${id}/read`);
+    return data.notification;
+  },
+  markAllAsRead: async () => {
+    const { data } = await api.put('/notifications/read-all');
+    return data;
+  }
+};

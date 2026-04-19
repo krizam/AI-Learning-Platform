@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 // ── Auth context ──────────────────────────────────────────────────────────────
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from '../components/NotificationBell';
 
 // ── Icons (react-icons/fa only) ───────────────────────────────────────────────
 import {
@@ -16,6 +17,8 @@ import {
   FaCompass,
   FaRobot,
   FaSignOutAlt,
+  FaSun,
+  FaMoon,
 } from 'react-icons/fa';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +42,7 @@ const STUDENT_LINKS = [
 // DashboardNav — sticky top bar used across all authenticated pages
 // =============================================================================
 const DashboardNav = ({ activePage }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, toggleTheme } = useAuth();
   const navigate         = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -102,8 +105,20 @@ const DashboardNav = ({ activePage }) => {
             </div>
           </div>
 
-          {/* Right side — avatar + logout + mobile toggle */}
+          {/* Right side — notification bell + theme toggle + avatar + logout + mobile toggle */}
           <div className="flex items-center space-x-2 flex-shrink-0">
+
+            {/* Notification Bell */}
+            <NotificationBell />
+
+            {/* Theme Toggle — Desktop */}
+            <button
+                onClick={toggleTheme}
+                aria-label="Toggle Theme"
+                className="hidden sm:block p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
+              >
+                {user?.themePreference === 'dark' ? <FaSun size={18} /> : <FaMoon size={18} />}
+            </button>
 
             {/* Avatar button — navigates to profile */}
             <button
@@ -162,6 +177,15 @@ const DashboardNav = ({ activePage }) => {
                 </button>
               );
             })}
+
+            {/* Theme Toggle in mobile menu */}
+            <button
+               onClick={() => { toggleTheme(); setMobileOpen(false); }}
+               className="w-full text-left flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              {user?.themePreference === 'dark' ? <FaSun className="text-sm" /> : <FaMoon className="text-sm" />}
+              <span>{user?.themePreference === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+            </button>
 
             {/* Logout in mobile menu — shown only here on xs screens */}
             <button

@@ -1,12 +1,12 @@
 // CourseLearning.jsx
 
 // ── React & routing ───────────────────────────────────────────────────────────
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 // ── Layout shell & API ────────────────────────────────────────────────────────
 import StudentShell from '../components/StudentShell';
-import { courseAPI } from '../services/api';
+import { courseAPI, progressAPI } from '../services/api';
 
 // ── Icons (react-icons/fa only) ───────────────────────────────────────────────
 import {
@@ -20,6 +20,7 @@ import {
   FaExclamationCircle,
   FaFilm,
   FaBookOpen,
+  FaCheckCircle,
 } from 'react-icons/fa';
 
 const isValidObjectId = (id) => /^[0-9a-f]{24}$/i.test(id);
@@ -40,6 +41,7 @@ const CourseLearning = () => {
   const [videos,        setVideos]        = useState([]);
   const [canWatch,      setCanWatch]      = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [completedLessons, setCompletedLessons] = useState([]);
 
   // ── All enrolled courses + their videos ───────────────────────────────────
   const [allCourses,        setAllCourses]        = useState([]);   // [{id,title,videos:[]}]
@@ -129,10 +131,63 @@ const CourseLearning = () => {
       instructor:  course.instructor || '',
       thumbnail:   course.thumbnail  || course.image || '',
       videoTitle:  selectedVideo.title,
-      videoIndex:  selectedIndex,
       watchedAt:   Date.now(),
     }));
   }, [courseId, course, selectedVideo, selectedIndex]);
+
+  // ── Fetch Progress ──────────────────────────────────────────────────────────
+  useEffect(() => {
+     if(courseId && canWatch) {
+       progressAPI.getCourseProgress(courseId).then(data => {
+         setCompletedLessons(data?.completedLessons?.map(l => l.lessonTitle) || []);
+       }).catch(console.error);
+     }
+  }, [courseId, canWatch]);
+
+  // ── Track Watch Time ────────────────────────────────────────────────────────
+  const unsubmittedWatchTime = useRef(0);
+  const lastTimeRef = useRef(0);
+
+  const handleTimeUpdate = (e) => {
+    if (!courseId) return;
+    const current = e.target.currentTime;
+    const previous = lastTimeRef.current;
+    
+    // Calculate difference (allow max 2s jump to ignore seeking)
+    const diff = current - previous;
+    if (diff > 0 && diff <= 2) {
+      unsubmittedWatchTime.current += diff;
+    }
+    lastTimeRef.current = current;
+
+    // Sync every 5 seconds
+    if (unsubmittedWatchTime.current >= 5) {
+      const timeToSync = Math.floor(unsubmittedWatchTime.current);
+      unsubmittedWatchTime.current -= timeToSync; 
+      progressAPI.addWatchTime(courseId, timeToSync).catch(console.error);
+    }
+  };
+
+  const handleSeeked = (e) => {
+    lastTimeRef.current = e.target.currentTime;
+  };
+
+  // Reset tracking when video changes
+  useEffect(() => {
+    unsubmittedWatchTime.current = 0;
+    lastTimeRef.current = 0;
+  }, [selectedVideo]);
+
+
+  const handleMarkComplete = async () => {
+    if(!selectedVideo) return;
+    try {
+      const data = await progressAPI.markLessonComplete(courseId, selectedVideo.title);
+      setCompletedLessons(data?.completedLessons?.map(l => l.lessonTitle) || []);
+    } catch(err) {
+      console.error('Failed to mark complete', err);
+    }
+  };
 
   // ── Navigate to a video in any course ─────────────────────────────────────
   const handleVideoClick = (targetCourseId, videoIndex) => {
@@ -240,6 +295,8 @@ const CourseLearning = () => {
                         autoPlay
                         preload="metadata"
                         poster={course?.thumbnail || undefined}
+                        onTimeUpdate={handleTimeUpdate}
+                        onSeeked={handleSeeked}
                       />
                     </div>
                   ) : (
@@ -248,13 +305,32 @@ const CourseLearning = () => {
                       <p className="text-sm">No videos uploaded yet.</p>
                     </div>
                   )}
-                  <div className="p-5 border-t border-slate-100">
-                    <h2 className="text-lg font-bold text-slate-900 mb-1">
-                      {selectedVideo?.title || 'Select a video from the playlist'}
-                    </h2>
-                    <p className="text-sm text-slate-400">
-                      {videos.length} video{videos.length !== 1 ? 's' : ''} in this course
-                    </p>
+                  <div className="p-5 border-t border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900 mb-1">
+                        {selectedVideo?.title || 'Select a video from the playlist'}
+                      </h2>
+                      <p className="text-sm text-slate-400">
+                        {videos.length} video{videos.length !== 1 ? 's' : ''} in this course
+                      </p>
+                    </div>
+                    {selectedVideo && (
+                      <button
+                        onClick={handleMarkComplete}
+                        disabled={completedLessons.includes(selectedVideo.title)}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors ${
+                          completedLessons.includes(selectedVideo.title) 
+                            ? 'bg-green-100 text-green-700 cursor-default' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                        }`}
+                      >
+                         {completedLessons.includes(selectedVideo.title) ? (
+                           <><FaCheckCircle /> Completed</>
+                         ) : (
+                           "Mark as Complete"
+                         )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

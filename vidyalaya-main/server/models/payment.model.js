@@ -73,4 +73,4 @@ paymentSchema.index({ enrollment: 1 });
 
 // Prevent OverwriteModelError on dev hot-reload
 const Payment = mongoose.models.Payment || mongoose.model('Payment', paymentSchema);
-export default Payment;
+export default Payment;     

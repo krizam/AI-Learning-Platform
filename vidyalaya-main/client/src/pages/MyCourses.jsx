@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // ── API ───────────────────────────────────────────────────────────────────────
-import { courseAPI } from '../services/api';
+import { courseAPI, progressAPI } from '../services/api';
 
 // ── Layout shell ──────────────────────────────────────────────────────────────
 import StudentShell from '../components/StudentShell';
@@ -30,9 +30,7 @@ import {
 // Constants
 // =============================================================================
 
-// Placeholder progress percentages indexed by enrollment order.
-// Will be replaced once a real progress API endpoint is available.
-const MOCK_PROGRESS = [60, 30, 80, 45, 15, 90, 55, 70, 25];
+// Real progress tracking will be fetched via API.
 
 // Gradient swatches cycled across course card banners for visual variety
 const CARD_GRADIENTS = [
@@ -90,9 +88,22 @@ const MyCourses = () => {
     const loadCourses = async () => {
       setLoading(true);
       try {
-        const data = await courseAPI.getEnrolledCourses();
-        setCourses(data.courses || []);
-      } catch {
+        const [courseData, progressData] = await Promise.all([
+          courseAPI.getEnrolledCourses(),
+          progressAPI.getAllProgress()
+        ]);
+        
+        const enrolled = courseData.courses || [];
+        const progresses = progressData || [];
+
+        const merged = enrolled.map(c => {
+          const p = progresses.find(p => String(p.course?._id || p.course) === String(c.id));
+          return { ...c, progress: p ? p.completionPercentage : 0 };
+        });
+
+        setCourses(merged);
+      } catch (err) {
+        console.error(err);
         setCourses([]);
       } finally {
         setLoading(false);
@@ -103,10 +114,9 @@ const MyCourses = () => {
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
-  // Filter uses the original array index so MOCK_PROGRESS aligns correctly.
-  // We carry the original index forward so card rendering uses the right value.
+  // Filter maps to the course's real progress
   const filtered = courses
-    .map((c, i) => ({ course: c, originalIndex: i, progress: MOCK_PROGRESS[i] ?? 50 }))
+    .map((c, i) => ({ course: c, originalIndex: i, progress: c.progress || 0 }))
     .filter(({ course, progress }) => {
       const matchSearch =
         course.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -118,8 +128,8 @@ const MyCourses = () => {
       return matchSearch && matchFilter;
     });
 
-  const inProgressCount = courses.filter((_, i) => (MOCK_PROGRESS[i] ?? 50) <  100).length;
-  const completedCount  = courses.filter((_, i) => (MOCK_PROGRESS[i] ?? 50) === 100).length;
+  const inProgressCount = courses.filter((c) => (c.progress || 0) > 0 && (c.progress || 0) < 100).length;
+  const completedCount  = courses.filter((c) => (c.progress || 0) === 100).length;
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (

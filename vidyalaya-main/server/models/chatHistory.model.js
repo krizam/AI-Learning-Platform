@@ -72,4 +72,3 @@ const ChatHistoryModel =
   mongoose.models.ChatHistory || mongoose.model('ChatHistory', chatHistorySchema);
 
 export default ChatHistoryModel;
-

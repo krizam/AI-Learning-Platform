@@ -50,4 +50,3 @@ const SubmissionModel =
   mongoose.models.Submission || mongoose.model('Submission', submissionSchema);
 
 export default SubmissionModel;
-

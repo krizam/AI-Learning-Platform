@@ -1,13 +1,16 @@
 import mongoose from 'mongoose';
 import multer from 'multer';
 import asyncHandler from 'express-async-handler';
+import path from 'path';
 
 import { protect, authorize } from '../middleware/auth.js';
 import Assignment from '../models/assignment.model.js';
 import Submission from '../models/submission.model.js';
 import Enrollment from '../models/enrollmentModel.js';
 import Course from '../models/courseModel.js';
+import Notification from '../models/notification.model.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
+import { emitNotification } from '../socket.js';
 
 const memoryUpload = multer({
   storage: multer.memoryStorage(),
@@ -86,6 +89,20 @@ export const createAssignment = asyncHandler(async (req, res) => {
   }
 
   const created = await Assignment.create(assignmentPayload);
+
+  // Notify enrolled students
+  const courseDoc = await Course.findById(courseId).select('students title');
+  if (courseDoc && courseDoc.students && courseDoc.students.length > 0) {
+    const notifsToInsert = courseDoc.students.map(studentId => ({
+      userId: studentId,
+      message: `New assignment "${created.title}" added to ${courseDoc.title}`,
+      type: 'assignment',
+      courseId: courseId
+    }));
+    const docs = await Notification.insertMany(notifsToInsert);
+    docs.forEach(notif => emitNotification(notif.userId, notif));
+  }
+
   res.status(201).json({ success: true, assignment: created });
 });
 
@@ -268,6 +285,17 @@ export const submitQuiz = [
 
     const submission = existing ? await Submission.findByIdAndUpdate(existing._id, next, { new: true }) : await Submission.create(next);
 
+    // Notify teacher
+    if (assignment.createdBy) {
+      const notif = await Notification.create({
+        userId: assignment.createdBy,
+        message: `${req.user.name} submitted quiz "${assignment.title}"`,
+        type: 'submission',
+        courseId: assignment.course
+      });
+      emitNotification(assignment.createdBy, notif);
+    }
+
     return res.json({
       success: true,
       submission,
@@ -340,6 +368,18 @@ export const submitProject = [
     };
 
     const submission = existing ? await Submission.findByIdAndUpdate(existing._id, payload, { new: true }) : await Submission.create(payload);
+    
+    // Notify teacher
+    if (assignment.createdBy) {
+      const notif = await Notification.create({
+        userId: assignment.createdBy,
+        message: `${req.user.name} submitted project "${assignment.title}"`,
+        type: 'submission',
+        courseId: assignment.course
+      });
+      emitNotification(assignment.createdBy, notif);
+    }
+    
     return res.json({ success: true, submission });
   }),
 ];
@@ -365,6 +405,10 @@ export const getAssignmentSubmissions = asyncHandler(async (req, res) => {
     .sort({ submittedAt: -1 })
     .populate('student', 'name email');
 
+  // Instead of Cloudinary URL directly, we serve the proxy endpoint.
+  // We use a relative or absolute URL. The frontend calls API_BASE + /assignments/submissions/:id/download.
+  const API_BASE = process.env.API_URL || 'http://localhost:5000/api';
+
   res.json({
     success: true,
     submissions: submissions.map((s) => ({
@@ -376,10 +420,40 @@ export const getAssignmentSubmissions = asyncHandler(async (req, res) => {
       correctCount: s.correctCount,
       totalQuestions: s.totalQuestions,
       feedback: s.feedback,
-      file: s.file?.url || null,
+      // Provide proxy URL
+      file: s.file?.url ? `${API_BASE}/assignments/submissions/${s._id}/download` : null,
       submittedAt: s.submittedAt,
       gradedAt: s.gradedAt,
     })),
+  });
+});
+
+import https from 'https';
+
+// GET /api/assignments/submissions/:submissionId/download (teacher/student proxy download)
+export const downloadSubmissionFile = asyncHandler(async (req, res) => {
+  const { submissionId } = req.params;
+  const submission = await Submission.findById(submissionId);
+
+  if (!submission || !submission.file || !submission.file.url) {
+    return res.status(404).json({ success: false, message: 'File not found' });
+  }
+
+  const fileUrl = submission.file.url;
+  const originalName = submission.file.originalName || 'submission_file';
+  const mimetype = submission.file.mimetype || 'application/octet-stream';
+
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(originalName)}"`);
+  res.setHeader('Content-Type', mimetype);
+
+  https.get(fileUrl, (proxyRes) => {
+    if (proxyRes.statusCode >= 400) {
+      res.status(proxyRes.statusCode || 500).json({ success: false, message: 'Failed to download from upstream' });
+      return;
+    }
+    proxyRes.pipe(res);
+  }).on('error', (err) => {
+    res.status(500).json({ success: false, message: err.message });
   });
 });
 
@@ -426,4 +500,3 @@ export const gradeSubmission = asyncHandler(async (req, res) => {
 
   res.json({ success: true, submission });
 });
-

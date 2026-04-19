@@ -3,6 +3,8 @@ import asyncHandler from 'express-async-handler';
 import { protect } from '../middleware/auth.js';
 import Enrollment from '../models/enrollmentModel.js';
 import Course from '../models/courseModel.js';
+import Notification from '../models/notification.model.js';
+import { emitNotification } from '../socket.js';
 
 const router = express.Router();
 
@@ -87,6 +89,17 @@ router.post(
       { path: 'student', select: 'name' },
       { path: 'course', select: 'title' },
     ]);
+
+    // Notify teacher
+    if (course.createdBy) {
+      const notif = await Notification.create({
+        userId: course.createdBy,
+        message: `${req.user.name} requested enrollment in ${course.title}`,
+        type: 'enrollment_request',
+        courseId: course._id
+      });
+      emitNotification(course.createdBy, notif);
+    }
 
     res.status(201).json({
       success: true,
@@ -219,6 +232,25 @@ router.post(
       { path: 'course', select: 'title' },
     ]);
 
+    // Notify student
+    if (isPaidCourse) {
+      const notif = await Notification.create({
+        userId: enrollment.student._id,
+        message: `Your enrollment request for ${course.title} has been approved. Please complete payment.`,
+        type: 'enrollment_approved',
+        courseId: course._id
+      });
+      emitNotification(enrollment.student._id, notif);
+    } else {
+      const notif = await Notification.create({
+        userId: enrollment.student._id,
+        message: `Your enrollment request for ${course.title} has been approved. You are now enrolled!`,
+        type: 'enrolled',
+        courseId: course._id
+      });
+      emitNotification(enrollment.student._id, notif);
+    }
+
     res.json({
       success: true,
       enrollment: formatEnrollment(populated),
@@ -266,4 +298,3 @@ router.post(
 );
 
 export default router;
-

@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 // ── Auth & API ────────────────────────────────────────────────────────────────
 import { useAuth } from '../context/AuthContext';
-import { courseAPI } from '../services/api';
+import { courseAPI, progressAPI } from '../services/api';
 
 // ── Assets ────────────────────────────────────────────────────────────────────
 import logo from '../assets/logo/logo1.png';
@@ -38,31 +38,8 @@ import StudentShell from '../components/StudentShell';
 // These will be replaced by real API data once those endpoints are available.
 // =============================================================================
 
-const MOCK_DEADLINES = [
-  { id: 1, title: 'Python Quiz',          course: 'Intro to Python',  date: 'Mar 12', urgent: true  },
-  { id: 2, title: 'UI Mockup Submission', course: 'UI/UX Design',     date: 'Mar 15', urgent: false },
-  { id: 3, title: 'Final Project',        course: 'Web Development',  date: 'Mar 20', urgent: false },
-];
-
-const MOCK_ACHIEVEMENTS = [
-  { id: 1, title: 'First Enrollment', icon: '🎯', earned: true  },
-  { id: 2, title: 'Fast Learner',     icon: '⚡', earned: true  },
-  { id: 3, title: 'Course Completer', icon: '🏆', earned: false },
-  { id: 4, title: '7-Day Streak',     icon: '🔥', earned: false },
-];
-
-const WEEKLY_ACTIVITY = [
-  { day: 'Mon', hours: 2   },
-  { day: 'Tue', hours: 1.5 },
-  { day: 'Wed', hours: 3   },
-  { day: 'Thu', hours: 0.5 },
-  { day: 'Fri', hours: 2.5 },
-  { day: 'Sat', hours: 1   },
-  { day: 'Sun', hours: 0   },
-];
-
-// Placeholder per-course progress percentages indexed by enrollment order
-const MOCK_PROGRESS = [60, 30, 80, 45, 15, 90, 55, 70, 25];
+// Mock values removed - UI will display empty states or 0 instead of hardcoded data.
+// Awaiting integration of the Progress and Engagement models.
 
 // Gradient classes cycled across course cards for visual variety
 const PROGRESS_COLORS = [
@@ -118,6 +95,7 @@ const StudentDashboard = () => {
   const navigate   = useNavigate();
 
   const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [totalHours,      setTotalHours]      = useState(0);
   const [loading,         setLoading]         = useState(true);
   const [activeTab,       setActiveTab]       = useState('overview');
 
@@ -126,9 +104,45 @@ const StudentDashboard = () => {
     const fetchEnrolled = async () => {
       setLoading(true);
       try {
-        const data = await courseAPI.getEnrolledCourses();
-        setEnrolledCourses(data.courses || []);
-      } catch {
+        const [courseData, progressData] = await Promise.all([
+          courseAPI.getEnrolledCourses(),
+          progressAPI.getAllProgress()
+        ]);
+        
+        const enrolled = courseData.courses || [];
+        const progresses = progressData || [];
+
+        const merged = enrolled.map(c => {
+          const p = progresses.find(p => String(p.course?._id || p.course) === String(c.id));
+          return { ...c, progress: p ? p.completionPercentage : 0 };
+        });
+
+        // Calculate total hours this week
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        let totalSeconds = 0;
+        progresses.forEach(p => {
+          if (p.watchTimeLogs) {
+             p.watchTimeLogs.forEach(log => {
+                const logDate = new Date(log.date);
+                if (logDate >= sevenDaysAgo) {
+                   totalSeconds += (log.timeSpent || 0);
+                }
+             });
+          }
+        });
+        
+        const hours = totalSeconds / 3600;
+        if (hours < 1 && totalSeconds > 0) {
+           setTotalHours(`${Math.floor(totalSeconds / 60)}m`);
+        } else {
+           setTotalHours(`${hours.toFixed(1)}h`);
+        }
+
+        setEnrolledCourses(merged);
+      } catch (err) {
+        console.error(err);
         setEnrolledCourses([]);
       } finally {
         setLoading(false);
@@ -139,19 +153,19 @@ const StudentDashboard = () => {
 
   // ── Derived values ──────────────────────────────────────────────────────────
 
-  // Average progress across all enrolled courses using mock progress data
+  // Average progress across all enrolled courses using course data
   const totalProgress =
     enrolledCourses.length > 0
       ? Math.round(
-          enrolledCourses.reduce((acc, _, i) => acc + (MOCK_PROGRESS[i] ?? 50), 0) /
+          enrolledCourses.reduce((acc, c) => acc + (c.progress || 0), 0) /
           enrolledCourses.length
         )
       : 0;
 
-  const maxHours   = Math.max(...WEEKLY_ACTIVITY.map((d) => d.hours));
-  const totalHours = WEEKLY_ACTIVITY.reduce((a, d) => a + d.hours, 0).toFixed(1);
+  // Placeholder static values until the analytics models are fully built
+  const maxHours   = 10;
 
-  const earnedCount = MOCK_ACHIEVEMENTS.filter((a) => a.earned).length;
+  const earnedCount = user?.badges?.length || 0;
 
   // First name used in the greeting to keep it friendly and short
   const firstName = user?.name?.split(' ')[0] || 'Student';
@@ -172,7 +186,7 @@ const StudentDashboard = () => {
           <div>
             <div className="flex items-center space-x-2 mb-1">
               <FaFire className="text-yellow-300" />
-              <span className="text-blue-100 text-sm font-medium">3 day streak!</span>
+              <span className="text-blue-100 text-sm font-medium">{user?.loginStreak || 0} day streak!</span>
             </div>
             <h2 className="text-3xl font-bold mb-1">
               Welcome back, {firstName}! 👋
@@ -231,7 +245,7 @@ const StudentDashboard = () => {
         />
         <StatCard
           icon={FaClock}
-          label="Hours This Week"
+          label="Time This Week"
           value={totalHours}
           gradient="from-purple-500 to-violet-600"
           sub="Learning time"
@@ -323,13 +337,13 @@ const StudentDashboard = () => {
                         <p className="font-semibold text-slate-900 text-sm truncate">{course.title}</p>
                         <p className="text-xs text-slate-400 mb-1.5">{course.instructor}</p>
                         <ProgressBar
-                          value={MOCK_PROGRESS[i] ?? 50}
+                          value={course.progress || 0}
                           gradient={PROGRESS_COLORS[i % PROGRESS_COLORS.length]}
                         />
                       </div>
 
                       <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold text-slate-700 mb-2">{MOCK_PROGRESS[i] ?? 50}%</p>
+                        <p className="text-xs font-bold text-slate-700 mb-2">{course.progress || 0}%</p>
                         <button
                           onClick={() => navigate(`/student/course/${course.id}/learn`)}
                           aria-label={`Continue ${course.title}`}
@@ -350,32 +364,7 @@ const StudentDashboard = () => {
                 <FaCalendarAlt className="text-orange-500" /><span>Upcoming Deadlines</span>
               </h3>
               <div className="space-y-3">
-                {MOCK_DEADLINES.map((d) => (
-                  <div
-                    key={d.id}
-                    className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors"
-                  >
-                    <div className="flex items-center space-x-3">
-                      {/* Urgency dot — red for urgent, green for upcoming */}
-                      <div
-                        className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${d.urgent ? 'bg-red-500' : 'bg-green-500'}`}
-                      />
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{d.title}</p>
-                        <p className="text-xs text-slate-400">{d.course}</p>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                        d.urgent
-                          ? 'bg-red-100 text-red-600'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}
-                    >
-                      {d.date}
-                    </span>
-                  </div>
-                ))}
+                <p className="text-sm text-slate-500 py-4 text-center">No upcoming deadlines.</p>
               </div>
             </div>
           </div>
@@ -386,23 +375,10 @@ const StudentDashboard = () => {
               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center space-x-2">
                 <FaFire className="text-orange-500" /><span>Weekly Activity</span>
               </h3>
-              {/* Mini bar chart — bar height proportional to maxHours */}
-              <div className="flex items-end space-x-2 h-28 mb-3">
-                {WEEKLY_ACTIVITY.map((d) => (
-                  <div key={d.day} className="flex-1 flex flex-col items-center space-y-1">
-                    <div
-                      className="w-full rounded-t-md bg-gradient-to-t from-blue-600 to-blue-400 transition-all"
-                      style={{
-                        height:    `${(d.hours / maxHours) * 88}px`,
-                        minHeight: d.hours > 0 ? '6px' : '2px',
-                        opacity:   d.hours > 0 ? 1 : 0.2,
-                      }}
-                    />
-                    <span className="text-xs text-slate-400">{d.day}</span>
-                  </div>
-                ))}
+              <div className="flex items-end justify-center space-x-2 h-28 mb-3">
+                <p className="text-sm text-slate-500 mt-10">Activity metrics currently tracking.</p>
               </div>
-              <p className="text-xs text-slate-400 text-center">{totalHours} hrs total this week</p>
+              <p className="text-xs text-slate-400 text-center">{totalHours} total this week</p>
             </div>
           </div>
         </div>
@@ -432,11 +408,11 @@ const StudentDashboard = () => {
                         {course.title}
                       </p>
                       <span className="text-sm font-bold text-blue-600">
-                        {MOCK_PROGRESS[i] ?? 50}%
+                        {course.progress || 0}%
                       </span>
                     </div>
                     <ProgressBar
-                      value={MOCK_PROGRESS[i] ?? 50}
+                      value={course.progress || 0}
                       gradient={PROGRESS_COLORS[i % PROGRESS_COLORS.length]}
                     />
                   </div>
@@ -450,25 +426,12 @@ const StudentDashboard = () => {
             <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center space-x-2">
               <FaFire className="text-orange-500" /><span>Weekly Learning</span>
             </h3>
-            <div className="flex items-end space-x-3 h-44 mb-4">
-              {WEEKLY_ACTIVITY.map((d) => (
-                <div key={d.day} className="flex-1 flex flex-col items-center space-y-2">
-                  <span className="text-xs text-slate-400">{d.hours}h</span>
-                  <div
-                    className="w-full rounded-t-lg bg-gradient-to-t from-blue-600 to-blue-400"
-                    style={{
-                      height:    `${(d.hours / maxHours) * 120}px`,
-                      minHeight: d.hours > 0 ? '8px' : '2px',
-                      opacity:   d.hours > 0 ? 1 : 0.2,
-                    }}
-                  />
-                  <span className="text-xs text-slate-500 font-medium">{d.day}</span>
-                </div>
-              ))}
+            <div className="flex items-end justify-center h-44 mb-4">
+               <p className="text-sm text-slate-500">More data needed.</p>
             </div>
             <div className="flex justify-between text-sm pt-4 border-t border-slate-100">
               <span className="text-slate-500">Total this week</span>
-              <span className="font-bold text-slate-900">{totalHours} hours</span>
+              <span className="font-bold text-slate-900">{totalHours}</span>
             </div>
           </div>
 
@@ -481,7 +444,7 @@ const StudentDashboard = () => {
               {[
                 { label: 'Courses Enrolled', value: enrolledCourses.length, icon: '📚' },
                 { label: 'Avg. Progress',    value: `${totalProgress}%`,    icon: '📈' },
-                { label: 'Hours Learned',    value: `${totalHours}h`,       icon: '⏱️' },
+                { label: 'Time Learned',     value: totalHours,             icon: '⏱️' },
                 { label: 'Day Streak',       value: '3 days',               icon: '🔥' },
               ].map((s) => (
                 <div key={s.label} className="text-center p-4 bg-slate-50 rounded-xl">
@@ -503,32 +466,26 @@ const StudentDashboard = () => {
 
           {/* Achievement badge grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            {MOCK_ACHIEVEMENTS.map((a) => (
-              <div
-                key={a.id}
-                className={[
-                  'bg-white rounded-2xl shadow-sm border p-6 text-center transition-all',
-                  a.earned
-                    ? 'border-yellow-200 hover:shadow-lg'
-                    : 'border-slate-200 opacity-50',
-                ].join(' ')}
-              >
-                {/* grayscale filter applied to locked badges */}
-                <div className={`text-5xl mb-3 ${!a.earned ? 'grayscale' : ''}`}>
-                  {a.icon}
-                </div>
-                <h4 className="font-bold text-slate-900 text-sm mb-2">{a.title}</h4>
-                {a.earned ? (
+            {(!user?.badges || user.badges.length === 0) ? (
+              <div className="col-span-full text-center py-6">
+                <p className="text-slate-500">No achievements yet. Start learning to earn badges!</p>
+              </div>
+            ) : (
+              user.badges.map((badge, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-2xl shadow-sm border border-yellow-200 p-6 text-center transition-all hover:shadow-lg"
+                >
+                  <div className="text-5xl mb-3">
+                    {badge.icon || '🏆'}
+                  </div>
+                  <h4 className="font-bold text-slate-900 text-sm mb-2">{badge.name}</h4>
                   <div className="flex items-center justify-center space-x-1 text-green-600 text-xs">
                     <FaCheckCircle /><span>Earned</span>
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center space-x-1 text-slate-400 text-xs">
-                    <FaMedal /><span>Locked</span>
-                  </div>
-                )}
-              </div>
-            ))}
+                </div>
+              ))
+            )}
           </div>
 
           {/* Certificates placeholder */}

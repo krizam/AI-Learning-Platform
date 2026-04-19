@@ -1,5 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+// We need to import EmailService from the correct path. It's in client/services/EmailService.js which is out of src. Wait! The import path requires calculating correctly.
+import { sendLoginNotification, sendSignupNotification } from '../../services/EmailService';
+
+
 
 const AuthContext = createContext(null);
 
@@ -35,6 +39,33 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [token]);
 
+  // Apply theme class to document
+  useEffect(() => {
+    const root = document.documentElement;
+    if (user?.themePreference === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [user?.themePreference]);
+
+  const toggleTheme = async () => {
+    if (!user) return;
+    const newTheme = user.themePreference === 'dark' ? 'light' : 'dark';
+    
+    // Optimistic UI update
+    const previousTheme = user.themePreference;
+    setUser(prev => ({ ...prev, themePreference: newTheme }));
+    
+    try {
+      await authAPI.updateTheme(newTheme);
+    } catch (error) {
+      console.error('Failed to update theme:', error);
+      // Revert optimistic update
+      setUser(prev => ({ ...prev, themePreference: previousTheme }));
+    }
+  };
+
   const login = async (email, password) => {
     try {
       const response = await authAPI.login(email, password);
@@ -44,6 +75,9 @@ export const AuthProvider = ({ children }) => {
       setToken(newToken);
       setUser(userData);
       
+      // Fire and forget login notification
+      sendLoginNotification(userData).catch(console.error);
+
       return { success: true };
     } catch (error) {
       return {
@@ -81,6 +115,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
     setUser(userData);
+    
+    // Fire and forget signup welcome email
+    // Once OTP is verified the user is fully registered
+    sendSignupNotification(userData).catch(console.error);
+
     return userData;
   };
 
@@ -104,6 +143,7 @@ export const AuthProvider = ({ children }) => {
     verifyOtpAndLogin,
     logout,
     updateUser,
+    toggleTheme,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

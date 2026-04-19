@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 
 // ── Auth context & route guards ───────────────────────────────────────────────
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
@@ -16,6 +17,8 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import OtpVerification from './pages/OtpVerification';
 import ExploreCourses from './pages/ExploreCourses';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // ── Authenticated pages ───────────────────────────────────────────────────────
 import Home from './pages/Home';
@@ -98,7 +101,8 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <Routes>
+        <NotificationProvider>
+          <Routes>
           {/* Public routes */}
           <Route path="/" element={<Landing />} />
           <Route path="/about" element={<About />} />
@@ -106,6 +110,8 @@ function App() {
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
           <Route path="/verify-otp" element={<PublicRoute><OtpVerification /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+          <Route path="/reset-password" element={<PublicRoute><ResetPassword /></PublicRoute>} />
           <Route path="/explore-courses" element={<ExploreCourses />} />
 
           {/* Authenticated routes */}
@@ -146,7 +152,8 @@ function App() {
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          </Routes>
+        </NotificationProvider>
       </Router>
     </AuthProvider>
   );

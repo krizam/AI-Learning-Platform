@@ -1,16 +1,4 @@
-// pages/CourseDetail.jsx  ← FULL REPLACEMENT
-//
-// Changes from your original:
-//   1. handleEnroll: both free and paid courses send an enrollment REQUEST.
-//      The difference happens AFTER teacher approval:
-//        Free  → teacher's approve controller sets status:'enrolled' directly
-//        Paid  → teacher's approve controller sets status:'approved'
-//                A "Pay Now" button then appears here
-//   2. handlePayNow: navigates to /payment with enrollmentId + courseData in state
-//   3. enrollmentId state variable: stores enrollment._id for use in Pay Now
-//   4. New status badge for 'approved' + paid course: "Teacher approved! Pay now."
-//   5. New 'enrolled' status handled (from the updated schema)
-//   6. FaMoneyBillWave added to icon imports
+
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';

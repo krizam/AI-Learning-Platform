@@ -1,11 +1,3 @@
-// routes/payment.route.js  ← NEW FILE
-//
-// Register in your main index.js / server.js with:
-//   import paymentRouter from './routes/payment.route.js';
-//   app.use('/api/payments', paymentRouter);
-//
-// Also add FRONTEND_URL to your .env:
-//   FRONTEND_URL=http://localhost:5173
 
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';

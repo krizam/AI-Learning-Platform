@@ -1,14 +1,4 @@
-// PaymentPage.jsx
-//
-// Shown after a teacher approves a paid course enrollment.
-// Reached via: navigate('/payment', { state: { enrollmentId, courseData } })
-//
-// Flow:
-//   1. Student lands here from CourseDetail after teacher approval
-//   2. "Pay Now" calls paymentAPI.initiate(enrollmentId)
-//   3. Backend returns { data: { payment_url, pidx, ... } }
-//   4. window.location.href = payment_url — browser goes to Khalti checkout
-//   5. Khalti redirects back to /payment/verify?pidx=...
+
 
 // ── React & routing ───────────────────────────────────────────────────────────
 import { useState, useEffect } from 'react';

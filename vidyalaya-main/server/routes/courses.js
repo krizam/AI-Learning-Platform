@@ -7,6 +7,8 @@ import Course from '../models/courseModel.js';
 import { protect } from '../middleware/auth.js';
 import Enrollment from '../models/enrollmentModel.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
+import Notification from '../models/notification.model.js';
+import { emitNotification } from '../socket.js';
 
 const router = express.Router();
 
@@ -573,6 +575,18 @@ router.post(
     }
 
     await course.save();
+
+    // Notify all students
+    if (course.students && course.students.length > 0) {
+      const notifsToInsert = course.students.map(studentId => ({
+        userId: studentId,
+        message: `New video "${title}" was added to ${course.title}`,
+        type: 'content',
+        courseId: course._id
+      }));
+      const docs = await Notification.insertMany(notifsToInsert);
+      docs.forEach(notif => emitNotification(notif.userId, notif));
+    }
 
     return res.json({
       success: true,

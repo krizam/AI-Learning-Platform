@@ -40,4 +40,3 @@ const AssignmentModel =
   mongoose.models.Assignment || mongoose.model('Assignment', assignmentSchema);
 
 export default AssignmentModel;
-

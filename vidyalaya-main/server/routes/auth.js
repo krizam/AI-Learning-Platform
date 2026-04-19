@@ -4,11 +4,19 @@ import asyncHandler from 'express-async-handler';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
+import rateLimit from 'express-rate-limit';
 import User from '../models/User.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { uploadToCloudinary } from '../utils/cloudinaryUpload.js';
 
 const router = express.Router();
+
+// ── Rate Limiters ────────────────────────────────────────────────────────────
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 OTP requests per `window` (here, per 15 minutes)
+  message: { success: false, message: 'Too many reset attempts from this IP, please try again after 15 minutes' },
+});
 
 // ── Multer setup for avatar uploads ─────────────────────────────────────────
 // Using memoryStorage so files go straight to Cloudinary (no local disk).
@@ -76,6 +84,10 @@ const serializeUser = (user) => ({
   degree: user.degree || '',
   yearsOfTeaching: user.yearsOfTeaching ?? null,
   experienceDescription: user.experienceDescription || '',
+  // Engagement features
+  themePreference: user.themePreference || 'light',
+  loginStreak: user.loginStreak || 0,
+  badges: user.badges || [],
 });
 
 // ── POST /api/auth/register ──────────────────────────────────────────────────
@@ -260,6 +272,7 @@ router.post(
 // ── POST /api/auth/forgot-password ────────────────────────────────────────────
 router.post(
   '/forgot-password',
+  otpLimiter,
   [
     body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   ],
@@ -273,7 +286,11 @@ router.post(
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ success: false, message: 'No account found with this email' });
+      // Prevent email enumeration
+      return res.json({
+        success: true,
+        message: 'If an account with that email exists, an OTP has been sent.',
+      });
     }
 
     const otp = generateOtp();
@@ -295,9 +312,47 @@ router.post(
 
     res.json({
       success: true,
-      message: 'An OTP has been sent to your email address for password reset.',
+      message: 'If an account with that email exists, an OTP has been sent.',
       email: user.email,
     });
+  })
+);
+
+// ── POST /api/auth/verify-reset-otp ───────────────────────────────────────────
+router.post(
+  '/verify-reset-otp',
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('otp')
+      .isLength({ min: 6, max: 6 })
+      .matches(/^\d{6}$/)
+      .withMessage('OTP must be a 6‑digit code'),
+  ],
+  asyncHandler(async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email }).select('+otpCode +otpExpiresAt +otpPurpose');
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid email or OTP' });
+    }
+
+    if (
+      !user.otpCode ||
+      !user.otpExpiresAt ||
+      user.otpPurpose !== 'resetPassword' ||
+      user.otpCode !== otp ||
+      user.otpExpiresAt < new Date()
+    ) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+
+    // OTP is valid. We don't reset it here, we just return success so the frontend can move to the next step.
+    res.json({ success: true, message: 'OTP verified successfully.' });
   })
 );
 
@@ -370,8 +425,59 @@ router.post(
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+    // --- Streak Logic ---
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    if (user.lastLoginDate) {
+      const lastLogin = new Date(user.lastLoginDate);
+      const lastLoginDay = new Date(lastLogin.getFullYear(), lastLogin.getMonth(), lastLogin.getDate());
+      
+      const diffTime = Math.abs(today.getTime() - lastLoginDay.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      
+      if (diffDays === 1) {
+        user.loginStreak += 1;
+        if (user.loginStreak === 7 && !user.badges.find(b => b.name === '7-Day Streak')) {
+           user.badges.push({ badgeType: 'streak', name: '7-Day Streak', icon: '🔥' });
+        }
+      } else if (diffDays > 1) {
+        user.loginStreak = 1;
+      }
+    } else {
+      user.loginStreak = 1;
+      // Assign First Login Badge
+      if (!user.badges.find(b => b.name === 'First Login')) {
+        user.badges.push({ badgeType: 'achievement', name: 'First Login', icon: '🎯' });
+      }
+    }
+    
+    user.lastLoginDate = now;
+    await user.save();
+    // --------------------
+
     const token = generateToken(user._id);
     res.json({ success: true, token, user: serializeUser(user) });
+  })
+);
+
+// ── PUT /api/auth/theme ──────────────────────────────────────────────────────
+router.put(
+  '/theme',
+  protect,
+  asyncHandler(async (req, res) => {
+    const { themePreference } = req.body;
+    if (!['light', 'dark'].includes(themePreference)) {
+      return res.status(400).json({ success: false, message: 'Invalid theme preference' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { themePreference },
+      { new: true }
+    );
+
+    res.json({ success: true, themePreference: user.themePreference });
   })
 );
 

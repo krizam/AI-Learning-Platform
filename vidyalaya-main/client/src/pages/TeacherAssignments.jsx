@@ -52,7 +52,6 @@ const TeacherAssignments = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
-  // Create form (MVP: JSON inputs for quiz questions / requirements)
   const [createForm, setCreateForm] = useState({
     courseId: '',
     type: 'quiz',
@@ -61,8 +60,8 @@ const TeacherAssignments = () => {
     dueAt: '',
     duration: '',
     points: 0,
-    questionsJson: '[]',
-    requirementsJson: '[]',
+    questions: [{ question: '', options: ['', ''], correctAnswer: 0 }],
+    requirements: [''],
   });
 
   const [creating, setCreating] = useState(false);
@@ -125,14 +124,16 @@ const TeacherAssignments = () => {
       };
 
       if (createForm.type === 'quiz') {
-        const parsed = safeJsonParse(createForm.questionsJson);
-        if (!Array.isArray(parsed) || parsed.length === 0) {
-          throw new Error('questionsJson must be a non-empty JSON array');
+        if (!createForm.questions || createForm.questions.length === 0) {
+          throw new Error('You must provide at least one quiz question.');
         }
-        payload.questions = parsed;
+        for (const q of createForm.questions) {
+          if (!q.question.trim()) throw new Error('All questions must have a prompt.');
+          if (q.options.some(opt => !opt.trim())) throw new Error('All options must be filled out.');
+        }
+        payload.questions = createForm.questions;
       } else {
-        const parsed = safeJsonParse(createForm.requirementsJson);
-        payload.requirements = Array.isArray(parsed) ? parsed : [];
+        payload.requirements = createForm.requirements.filter(req => req.trim() !== '');
       }
 
       await assignmentAPI.createAssignment(payload);
@@ -146,8 +147,8 @@ const TeacherAssignments = () => {
         dueAt: '',
         duration: '',
         points: 0,
-        questionsJson: '[]',
-        requirementsJson: '[]',
+        questions: [{ question: '', options: ['', ''], correctAnswer: 0 }],
+        requirements: [''],
       });
 
       await loadAll();
@@ -306,31 +307,143 @@ const TeacherAssignments = () => {
                 </div>
 
                 {createForm.type === 'quiz' ? (
-                  <div>
-                    <label className="text-xs text-slate-600">
-                      Quiz questions JSON
-                    </label>
-                    <textarea
-                      value={createForm.questionsJson}
-                      onChange={(e) => onChange('questionsJson', e.target.value)}
-                      className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white min-h-[120px] font-mono"
-                      placeholder='[{"question":"...","options":["a","b"],"correctAnswer":0}]'
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Each question: <code>question</code>, <code>options</code>, <code>correctAnswer</code> (index).
-                    </p>
+                  <div className="space-y-4 pt-2">
+                    <label className="font-semibold text-sm text-slate-800">Quiz Questions</label>
+                    {createForm.questions.map((q, qIndex) => (
+                      <div key={qIndex} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3 relative">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-semibold text-slate-600">Question {qIndex + 1}</span>
+                          {createForm.questions.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newQ = [...createForm.questions];
+                                newQ.splice(qIndex, 1);
+                                onChange('questions', newQ);
+                              }}
+                              className="text-red-500 hover:text-red-700 text-xs font-semibold"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          value={q.question}
+                          onChange={(e) => {
+                            const newQ = [...createForm.questions];
+                            newQ[qIndex].question = e.target.value;
+                            onChange('questions', newQ);
+                          }}
+                          placeholder="Question prompt"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                        />
+                        <div className="space-y-2">
+                          <label className="text-xs text-slate-500 font-medium">Options & Correct Answer</label>
+                          {q.options.map((opt, optIndex) => (
+                            <div key={optIndex} className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name={`correct-${qIndex}`}
+                                checked={q.correctAnswer === optIndex}
+                                onChange={() => {
+                                  const newQ = [...createForm.questions];
+                                  newQ[qIndex].correctAnswer = optIndex;
+                                  onChange('questions', newQ);
+                                }}
+                                className="text-blue-600 w-4 h-4 ml-1 cursor-pointer"
+                              />
+                              <input
+                                value={opt}
+                                onChange={(e) => {
+                                  const newQ = [...createForm.questions];
+                                  newQ[qIndex].options[optIndex] = e.target.value;
+                                  onChange('questions', newQ);
+                                }}
+                                placeholder={`Option ${optIndex + 1}`}
+                                className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"
+                              />
+                              {q.options.length > 2 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newQ = [...createForm.questions];
+                                    newQ[qIndex].options.splice(optIndex, 1);
+                                    if (newQ[qIndex].correctAnswer >= newQ[qIndex].options.length) {
+                                      newQ[qIndex].correctAnswer = Math.max(0, newQ[qIndex].options.length - 1);
+                                    }
+                                    onChange('questions', newQ);
+                                  }}
+                                  className="text-red-400 hover:text-red-600 px-2 flex-shrink-0"
+                                  title="Remove Option"
+                                >
+                                  <FaTimes />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newQ = [...createForm.questions];
+                              newQ[qIndex].options.push('');
+                              onChange('questions', newQ);
+                            }}
+                            className="text-xs text-blue-600 font-semibold hover:underline mt-1 ml-6 flex items-center gap-1"
+                          >
+                            <FaPlus className="text-[10px]"/> Add Option
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange('questions', [...createForm.questions, { question: '', options: ['', ''], correctAnswer: 0 }]);
+                      }}
+                      className="w-full py-2 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-semibold text-sm hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <FaPlus /> Add Question
+                    </button>
                   </div>
                 ) : (
-                  <div>
-                    <label className="text-xs text-slate-600">
-                      Project requirements JSON
-                    </label>
-                    <textarea
-                      value={createForm.requirementsJson}
-                      onChange={(e) => onChange('requirementsJson', e.target.value)}
-                      className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white min-h-[100px] font-mono"
-                      placeholder='["Requirement 1","Requirement 2"]'
-                    />
+                  <div className="space-y-3 pt-2">
+                    <label className="font-semibold text-sm text-slate-800">Project Requirements</label>
+                    {createForm.requirements.map((req, reqIndex) => (
+                      <div key={reqIndex} className="flex gap-2 items-start">
+                        <textarea
+                          value={req}
+                          onChange={(e) => {
+                            const newReqs = [...createForm.requirements];
+                            newReqs[reqIndex] = e.target.value;
+                            onChange('requirements', newReqs);
+                          }}
+                          placeholder={`Requirement ${reqIndex + 1}`}
+                          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white min-h-[60px] resize-y"
+                        />
+                        {createForm.requirements.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newReqs = [...createForm.requirements];
+                              newReqs.splice(reqIndex, 1);
+                              onChange('requirements', newReqs);
+                            }}
+                            className="text-red-400 hover:text-red-600 p-2 mt-1"
+                          >
+                            <FaTimes />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange('requirements', [...createForm.requirements, '']);
+                      }}
+                      className="w-full py-2 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-semibold text-sm hover:border-slate-400 hover:bg-slate-50 flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <FaPlus /> Add Requirement
+                    </button>
                   </div>
                 )}
 
@@ -435,14 +548,32 @@ const TeacherAssignments = () => {
                             </div>
                           </div>
                           {s.file ? (
-                            <a
-                              href={s.file}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-blue-600 hover:underline"
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const token = localStorage.getItem('token');
+                                  const res = await fetch(`${s.file}?token=${token}`);
+                                  if (!res.ok) throw new Error('Download failed');
+                                  const blob = await res.blob();
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  // Extract original filename from Content-Disposition or fallback
+                                  const disp = res.headers.get('Content-Disposition') || '';
+                                  const match = disp.match(/filename="?([^"]+)"?/);
+                                  a.download = match ? decodeURIComponent(match[1]) : 'submission';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
+                                  URL.revokeObjectURL(url);
+                                } catch (err) {
+                                  alert('Could not download file: ' + err.message);
+                                }
+                              }}
+                              className="text-xs text-blue-600 hover:underline cursor-pointer"
                             >
-                              Open file
-                            </a>
+                              Download file
+                            </button>
                           ) : null}
                         </div>
 

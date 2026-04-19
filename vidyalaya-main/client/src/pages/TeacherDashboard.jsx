@@ -60,7 +60,7 @@ const EMPTY_FORM = {
   instructor:  '',
   duration:    '',
   image:       '',
-  price:       0,
+  price:       '',
   color:       'from-blue-500 to-cyan-500',
 };
 
@@ -223,19 +223,6 @@ const CourseModal = ({ initial, onClose, onSave, loading, error }) => {
               />
             </div>
 
-            {/* Cover image URL */}
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Cover Image URL <span className="text-xs text-slate-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="url"
-                value={form.image}
-                onChange={(e) => set('image', e.target.value)}
-                className={MODAL_INPUT_CLASS}
-                placeholder="https://…"
-              />
-            </div>
 
             {/* Price */}
             <div className="sm:col-span-2">
@@ -248,7 +235,7 @@ const CourseModal = ({ initial, onClose, onSave, loading, error }) => {
                 min="0"
                 step="1"
                 value={form.price}
-                onChange={(e) => set('price', e.target.value === '' ? 0 : Number(e.target.value))}
+                onChange={(e) => set('price', e.target.value === '' ? '' : Number(e.target.value))}
                 className={MODAL_INPUT_CLASS}
                 placeholder="0"
               />
@@ -393,7 +380,8 @@ const TeacherDashboard = () => {
     setModalLoading(true);
     setModalError('');
     try {
-      const data = await courseAPI.createCourse(form);
+      const payload = { ...form, price: Number(form.price) || 0 };
+      const data = await courseAPI.createCourse(payload);
       await fetchCourses();
       setShowModal(false);
       showToast('Course created! Now upload thumbnail + videos.');
@@ -410,7 +398,8 @@ const TeacherDashboard = () => {
     setModalLoading(true);
     setModalError('');
     try {
-      await courseAPI.updateCourse(editingCourse.id, form);
+      const payload = { ...form, price: Number(form.price) || 0 };
+      await courseAPI.updateCourse(editingCourse.id, payload);
       await fetchCourses();
       setEditingCourse(null);
       showToast('Course updated successfully!');

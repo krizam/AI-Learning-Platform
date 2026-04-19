@@ -64,14 +64,13 @@ const OtpVerification = () => {
         await verifyOtpAndLogin(email, otp);
         setSuccess('Email verified successfully!');
         navigate('/dashboard', { replace: true });
-      } else if (context === 'forgotPassword' && location.state?.pendingNewPassword) {
-        await authAPI.resetPasswordWithOtp(
-          email,
-          otp,
-          location.state.pendingNewPassword
-        );
-        setSuccess('Password reset successfully. You can now log in.');
-        navigate('/login', { replace: true });
+      } else if (context === 'forgotPassword') {
+        await authAPI.verifyResetOtp(email, otp);
+        setSuccess('OTP verified successfully!');
+        navigate('/reset-password', {
+          state: { email, otp },
+          replace: true,
+        });
       } else {
         setError('Invalid verification context.');
       }
